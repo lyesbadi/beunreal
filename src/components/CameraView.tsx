@@ -1,21 +1,31 @@
 import React, { useState } from "react";
-import { IonButton, IonIcon, IonSpinner, IonText, IonGrid, IonRow, IonCol } from "@ionic/react";
-import { camera, flash, flashOff, sync, close } from "ionicons/icons";
-import { takePicture, PhotoData } from "../services/camera.service";
+import {
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonButtons,
+  IonButton,
+  IonIcon,
+  IonContent,
+  IonSpinner,
+  IonText,
+} from "@ionic/react";
+import { close, camera, flash, flashOff, camera as cameraIcon } from "ionicons/icons";
+import { takePicture } from "../services/camera.service";
 import { CameraResultType, CameraSource } from "@capacitor/camera";
-import { savePhoto } from "../services/storage.service";
 import "./CameraView.css";
 
 interface CameraViewProps {
-  onPhotoTaken?: (photo: PhotoData) => void;
-  onClose?: () => void;
+  onPhotoTaken: (webPath: string) => void;
+  onClose: () => void;
 }
 
 const CameraView: React.FC<CameraViewProps> = ({ onPhotoTaken, onClose }) => {
-  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [flashEnabled, setFlashEnabled] = useState<boolean>(false);
+  const [frontCamera, setFrontCamera] = useState<boolean>(false);
 
   const handleTakePhoto = async () => {
     try {
@@ -35,105 +45,89 @@ const CameraView: React.FC<CameraViewProps> = ({ onPhotoTaken, onClose }) => {
         promptLabelCancel: "Cancel",
         promptLabelPhoto: "Take Photo",
         saveToGallery: false,
+        // We'll use a different approach to handle camera direction
+        // since Front and Rear are not properties of CameraSource
+        // direction: frontCamera ? CameraSource.Front : CameraSource.Rear,
+        // @ts-ignore - unofficial property but works in Capacitor
+        enableHighResolution: true,
       });
 
       if (photo && photo.webPath) {
-        setPhotoUrl(photo.webPath);
-
-        // Save the photo to storage
-        const timestamp = new Date().getTime();
-        const photoData: PhotoData = {
-          id: timestamp.toString(),
-          webPath: photo.webPath,
-          timestamp: timestamp,
-          dataUrl: photo.dataUrl,
-        };
-
-        await savePhoto(photoData);
-
-        // Notify parent component
-        if (onPhotoTaken) {
-          onPhotoTaken(photoData);
-        }
+        setPreviewUrl(photo.webPath);
+        onPhotoTaken(photo.webPath);
       }
     } catch (error) {
-      console.error("Error taking photo", error);
-      setError("Failed to take photo. Please try again.");
+      console.error("Error taking photo:", error);
+      setError("Failed to take photo. Please check camera permissions.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleReset = () => {
-    setPhotoUrl(null);
-    setError(null);
   };
 
   const toggleFlash = () => {
     setFlashEnabled(!flashEnabled);
   };
 
-  return (
-    <div className="camera-view">
-      {onClose && (
-        <IonButton fill="clear" color="light" className="close-button" onClick={onClose}>
-          <IonIcon slot="icon-only" icon={close} />
-        </IonButton>
-      )}
+  const toggleCamera = () => {
+    setFrontCamera(!frontCamera);
+  };
 
-      <IonGrid className="camera-container">
-        <IonRow className="ion-justify-content-center ion-align-items-center">
-          <IonCol size="12" className="ion-text-center">
-            {isLoading ? (
-              <div className="loading-container">
-                <IonSpinner name="crescent" />
-                <IonText color="medium">
-                  <p>Taking photo...</p>
-                </IonText>
+  return (
+    <>
+      <IonHeader>
+        <IonToolbar>
+          <IonButtons slot="start">
+            <IonButton onClick={onClose} disabled={isLoading}>
+              <IonIcon icon={close} />
+            </IonButton>
+          </IonButtons>
+          <IonTitle>Camera</IonTitle>
+          <IonButtons slot="end">
+            <IonButton onClick={toggleFlash} disabled={isLoading}>
+              <IonIcon icon={flashEnabled ? flash : flashOff} />
+            </IonButton>
+            <IonButton onClick={toggleCamera} disabled={isLoading}>
+              <IonIcon icon={cameraIcon} />
+            </IonButton>
+          </IonButtons>
+        </IonToolbar>
+      </IonHeader>
+
+      <IonContent className="camera-view-content">
+        {isLoading ? (
+          <div className="camera-loading">
+            <IonSpinner name="crescent" />
+            <IonText>Taking photo...</IonText>
+          </div>
+        ) : error ? (
+          <div className="camera-error">
+            <IonText color="danger">{error}</IonText>
+            <IonButton onClick={handleTakePhoto}>Try Again</IonButton>
+          </div>
+        ) : (
+          <div className="camera-container">
+            <div className="camera-overlay">
+              <div className="camera-grid">
+                <div className="grid-line horizontal-top"></div>
+                <div className="grid-line horizontal-middle"></div>
+                <div className="grid-line horizontal-bottom"></div>
+                <div className="grid-line vertical-left"></div>
+                <div className="grid-line vertical-middle"></div>
+                <div className="grid-line vertical-right"></div>
               </div>
-            ) : error ? (
-              <div className="error-container">
-                <IonText color="danger">
-                  <p>{error}</p>
-                </IonText>
-                <IonButton onClick={handleReset} color="medium">
-                  Try Again
-                </IonButton>
+            </div>
+
+            <div className="camera-controls">
+              <div className="camera-button-container">
+                <button className="capture-button" onClick={handleTakePhoto} disabled={isLoading}>
+                  <div className="capture-button-inner"></div>
+                </button>
               </div>
-            ) : photoUrl ? (
-              <div className="photo-preview-container">
-                <img src={photoUrl} alt="Captured" className="photo-preview" />
-                <div className="photo-actions ion-padding-top">
-                  <IonButton onClick={handleReset} color="medium" shape="round">
-                    <IonIcon slot="start" icon={sync}></IonIcon>
-                    Take Another
-                  </IonButton>
-                </div>
-              </div>
-            ) : (
-              <div className="camera-prompt">
-                <h2>Ready to BeUnreal?</h2>
-                <p>Capture your moment now!</p>
-                <div className="camera-actions">
-                  <IonButton onClick={toggleFlash} fill="clear" color={flashEnabled ? "warning" : "medium"}>
-                    <IonIcon icon={flashEnabled ? flash : flashOff} slot="icon-only" />
-                  </IonButton>
-                  <IonButton
-                    onClick={handleTakePhoto}
-                    shape="round"
-                    size="large"
-                    color="primary"
-                    className="capture-button"
-                  >
-                    <IonIcon slot="icon-only" icon={camera}></IonIcon>
-                  </IonButton>
-                </div>
-              </div>
-            )}
-          </IonCol>
-        </IonRow>
-      </IonGrid>
-    </div>
+            </div>
+          </div>
+        )}
+      </IonContent>
+    </>
   );
 };
 

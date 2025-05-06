@@ -1,64 +1,181 @@
-.camera-container {
+.home-page {
+  --background: var(--beunreal-background);
+}
+
+.feed-grid {
+  padding: 0;
+}
+
+.post-card {
+  margin: 0 0 12px 0;
+  box-shadow: none;
+  border-radius: 0;
+  background-color: var(--beunreal-surface);
+  border-top: 1px solid var(--beunreal-border);
+  border-bottom: 1px solid var(--beunreal-border);
+}
+
+.post-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  padding-right: 8px;
+}
+
+.post-header ion-item {
+  --background: transparent;
+  --padding-start: 12px;
+  --inner-padding-end: 0;
+  --min-height: 56px;
+  flex: 1;
+}
+
+.post-username {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--beunreal-text);
+  margin: 0;
+}
+
+.post-time {
+  font-size: 12px;
+  color: var(--beunreal-text-secondary);
+  margin: 0;
+}
+
+.post-options-button {
+  --color: var(--beunreal-text);
+  --padding-start: 8px;
+  --padding-end: 8px;
+  margin: 0;
+  height: 36px;
+}
+
+.default-avatar {
+  width: 100%;
   height: 100%;
-  justify-content: center;
-}
-
-.camera-prompt {
-  padding: 20px;
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.camera-prompt h2 {
-  font-size: 28px;
-  font-weight: 700;
-  margin-bottom: 10px;
-  color: var(--ion-color-dark);
-}
-
-.camera-prompt p {
-  font-size: 16px;
-  color: var(--ion-color-medium);
-  margin-bottom: 30px;
-}
-
-.camera-actions {
   display: flex;
-  justify-content: center;
   align-items: center;
-  gap: 20px;
+  justify-content: center;
+  background-color: var(--beunreal-primary);
+  color: var(--beunreal-surface);
+  font-size: 16px;
+  font-weight: 600;
 }
 
-.capture-button {
-  width: 70px;
-  height: 70px;
-  --border-radius: 50%;
-  --box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
-}
-
-.photo-preview-container {
+.post-image-container {
   width: 100%;
+  background-color: var(--beunreal-background);
+}
+
+.post-image {
+  width: 100%;
+  max-height: 600px;
+  object-fit: contain;
+}
+
+.post-content {
+  padding: 12px;
+}
+
+.post-actions {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.post-action-button {
+  --background: transparent;
+  --background-activated: transparent;
+  --background-focused: transparent;
+  --background-hover: transparent;
+  --color: var(--beunreal-text);
+  --padding-start: 0;
+  --padding-end: 12px;
+  margin: 0;
+  height: 36px;
+}
+
+.post-action-button ion-icon {
+  font-size: 24px;
+}
+
+.post-action-button ion-icon.liked {
+  color: var(--beunreal-danger);
+}
+
+.post-likes {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--beunreal-text);
+}
+
+.post-caption {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--beunreal-text);
+  line-height: 1.4;
+}
+
+.post-comments-link {
+  font-size: 14px;
+  color: var(--beunreal-text-secondary);
+  margin-top: 8px;
+}
+
+.camera-fab {
+  transform: translateY(-24px);
+}
+
+.camera-fab ion-fab-button {
+  --background: linear-gradient(45deg, #000000, #262626);
+  --background-activated: linear-gradient(45deg, #000000, #262626);
+  --background-hover: linear-gradient(45deg, #000000, #262626);
+  --color: #ffffff;
+  --box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.camera-modal,
+.composer-modal {
+  --border-radius: 0;
+  --width: 100%;
+  --height: 100%;
+}
+
+.empty-feed {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-
-.photo-preview {
-  width: 100%;
-  max-width: 400px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.photo-actions {
-  margin-top: 20px;
-  display: flex;
   justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  height: 100%;
 }
 
-.loading-container {
+.empty-feed-icon {
+  font-size: 64px;
+  color: var(--beunreal-text-secondary);
+  margin-bottom: 16px;
+}
+
+.empty-feed h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--beunreal-text);
+}
+
+.empty-feed p {
+  color: var(--beunreal-text-secondary);
+  margin: 0 0 24px;
+  max-width: 260px;
+}
+
+.empty-feed-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.spinner-container {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -66,8 +183,20 @@
   padding: 40px 0;
 }
 
-.loading-container ion-spinner {
-  width: 40px;
-  height: 40px;
-  margin-bottom: 10px;
+.spinner-container ion-spinner {
+  margin-bottom: 16px;
+}
+
+/* Media Queries for larger screens */
+@media (min-width: 768px) {
+  .feed-grid {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .post-card {
+    border-radius: 12px;
+    margin: 16px 0;
+    border: 1px solid var(--beunreal-border);
+  }
 }
