@@ -2,6 +2,50 @@
   --background: var(--beunreal-background);
 }
 
+.app-title {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.notification-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 10px;
+  --padding-start: 4px;
+  --padding-end: 4px;
+}
+
+.feed-segment {
+  background-color: var(--beunreal-surface);
+  --background: var(--beunreal-surface);
+  padding: 0;
+  margin-bottom: 0;
+  border-top: 1px solid var(--beunreal-border);
+  border-bottom: 1px solid var(--beunreal-border);
+}
+
+.feed-segment ion-segment-button {
+  --color: var(--beunreal-text-secondary);
+  --color-checked: var(--beunreal-primary);
+  --indicator-color: var(--beunreal-primary);
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.feed-segment ion-icon {
+  margin-right: 5px;
+}
+
+.location-badge {
+  font-size: 10px;
+  --padding-start: 4px;
+  --padding-end: 4px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
 .feed-grid {
   padding: 0;
 }
@@ -40,6 +84,21 @@
   font-size: 12px;
   color: var(--beunreal-text-secondary);
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.post-location {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--beunreal-text-secondary);
+  gap: 4px;
+}
+
+.post-location ion-icon {
+  font-size: 14px;
 }
 
 .post-options-button {
@@ -135,7 +194,8 @@
 }
 
 .camera-modal,
-.composer-modal {
+.composer-modal,
+.story-creator-modal {
   --border-radius: 0;
   --width: 100%;
   --height: 100%;

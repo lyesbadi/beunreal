@@ -21,11 +21,17 @@ import {
   IonRefresherContent,
   RefresherEventDetail,
   useIonRouter,
+  IonSegment,
+  IonSegmentButton,
+  IonBadge,
+  IonPopover,
+  IonActionSheet,
 } from "@ionic/react";
-import { pencil, chevronForward, personAdd, search, people, chevronDownCircle } from "ionicons/icons";
+import { pencil, chevronForward, personAdd, search, people, chevronDownCircle, add, addOutline } from "ionicons/icons";
 import { useAuthContext } from "../contexts/AuthContext";
 import { getConversations, ConversationWithUsers } from "../services/chat.service";
 import NewChatModal from "../components/NewChatModal";
+import GroupChatCreator from "../components/GroupChatCreator";
 import "./Chat.css";
 
 const Chat: React.FC = () => {
@@ -36,6 +42,10 @@ const Chat: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchText, setSearchText] = useState<string>("");
   const [showNewChatModal, setShowNewChatModal] = useState<boolean>(false);
+  const [showGroupCreator, setShowGroupCreator] = useState<boolean>(false);
+  const [fabPopoverOpen, setFabPopoverOpen] = useState<boolean>(false);
+  const [conversationType, setConversationType] = useState<string>("all");
+  const [showActionSheet, setShowActionSheet] = useState<boolean>(false);
 
   useEffect(() => {
     loadConversations();
@@ -65,11 +75,30 @@ const Chat: React.FC = () => {
 
   const handleNewChat = () => {
     setShowNewChatModal(true);
+    setFabPopoverOpen(false);
+  };
+
+  const handleNewGroupChat = () => {
+    setShowGroupCreator(true);
+    setFabPopoverOpen(false);
+  };
+
+  const handleFabClick = (e: any) => {
+    e.persist();
+    setFabPopoverOpen(true);
   };
 
   const handleNewChatSuccess = () => {
     setShowNewChatModal(false);
     loadConversations();
+  };
+
+  const handleGroupCreated = (conversationId: string) => {
+    setShowGroupCreator(false);
+    loadConversations();
+
+    // Navigate to the new conversation
+    router.push(`/app/conversation/${conversationId}`);
   };
 
   const formatLastMessageTime = (timestamp: number) => {
@@ -97,6 +126,34 @@ const Chat: React.FC = () => {
 
     return date.toLocaleDateString([], { month: "short", day: "numeric" });
   };
+
+  const filteredConversations = conversations
+    .filter((conversation) => {
+      // Filter by search text
+      if (searchText) {
+        if (conversation.isGroup && conversation.groupName) {
+          return conversation.groupName.toLowerCase().includes(searchText.toLowerCase());
+        } else if (!conversation.isGroup && conversation.users.length > 0) {
+          return conversation.users[0].username.toLowerCase().includes(searchText.toLowerCase());
+        }
+        return false;
+      }
+
+      // Filter by conversation type
+      if (conversationType === "direct") {
+        return !conversation.isGroup;
+      } else if (conversationType === "group") {
+        return conversation.isGroup;
+      }
+
+      return true; // "all" type
+    })
+    .sort((a, b) => {
+      // Sort by last message time
+      const timeA = a.lastMessage ? a.lastMessage.createdAt : a.updatedAt;
+      const timeB = b.lastMessage ? b.lastMessage.createdAt : b.updatedAt;
+      return timeB - timeA;
+    });
 
   const renderConversationItem = (conversation: ConversationWithUsers) => {
     if (conversation.isGroup) {
@@ -175,22 +232,6 @@ const Chat: React.FC = () => {
     }
   };
 
-  const filteredConversations = conversations.filter((conversation) => {
-    if (!searchText) return true;
-
-    // Filter by group name
-    if (conversation.isGroup && conversation.groupName) {
-      return conversation.groupName.toLowerCase().includes(searchText.toLowerCase());
-    }
-
-    // Filter by username
-    if (!conversation.isGroup && conversation.users.length > 0) {
-      return conversation.users[0].username.toLowerCase().includes(searchText.toLowerCase());
-    }
-
-    return false;
-  });
-
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -209,7 +250,12 @@ const Chat: React.FC = () => {
           <IonIcon icon={personAdd} className="empty-state-icon" />
           <h2 className="empty-state-title">No Messages Yet</h2>
           <p className="empty-state-message">Start a conversation with someone</p>
-          <IonButton onClick={handleNewChat}>New Message</IonButton>
+          <div className="empty-state-actions">
+            <IonButton onClick={handleNewChat}>New Message</IonButton>
+            <IonButton onClick={handleNewGroupChat} fill="outline">
+              New Group
+            </IonButton>
+          </div>
         </div>
       );
     }
@@ -257,16 +303,56 @@ const Chat: React.FC = () => {
           />
         </div>
 
+        <IonSegment
+          value={conversationType}
+          onIonChange={(e) => setConversationType(e.detail.value!)}
+          className="conversation-segment"
+        >
+          <IonSegmentButton value="all">
+            <IonLabel>All</IonLabel>
+          </IonSegmentButton>
+          <IonSegmentButton value="direct">
+            <IonLabel>Direct</IonLabel>
+          </IonSegmentButton>
+          <IonSegmentButton value="group">
+            <IonLabel>Groups</IonLabel>
+            <IonBadge color="primary" className="group-badge">
+              {conversations.filter((c) => c.isGroup).length}
+            </IonBadge>
+          </IonSegmentButton>
+        </IonSegment>
+
         {renderContent()}
 
-        <IonFab vertical="bottom" horizontal="end" slot="fixed">
-          <IonFabButton onClick={handleNewChat}>
-            <IonIcon icon={pencil} />
+        <IonFab vertical="bottom" horizontal="end" slot="fixed" className="chat-fab">
+          <IonFabButton onClick={handleFabClick}>
+            <IonIcon icon={add} />
           </IonFabButton>
+
+          <IonPopover isOpen={fabPopoverOpen} onDidDismiss={() => setFabPopoverOpen(false)} className="chat-popover">
+            <IonList className="popover-list">
+              <IonItem button onClick={handleNewChat} detail={false}>
+                <IonIcon slot="start" icon={personAdd} />
+                <IonLabel>New Message</IonLabel>
+              </IonItem>
+              <IonItem button onClick={handleNewGroupChat} detail={false}>
+                <IonIcon slot="start" icon={people} />
+                <IonLabel>New Group</IonLabel>
+              </IonItem>
+            </IonList>
+          </IonPopover>
         </IonFab>
 
         <IonModal isOpen={showNewChatModal} onDidDismiss={() => setShowNewChatModal(false)} className="new-chat-modal">
           <NewChatModal onClose={() => setShowNewChatModal(false)} onSuccess={handleNewChatSuccess} />
+        </IonModal>
+
+        <IonModal
+          isOpen={showGroupCreator}
+          onDidDismiss={() => setShowGroupCreator(false)}
+          className="group-creator-modal"
+        >
+          <GroupChatCreator onClose={() => setShowGroupCreator(false)} onSuccess={handleGroupCreated} />
         </IonModal>
       </IonContent>
     </IonPage>

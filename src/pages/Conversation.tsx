@@ -374,7 +374,9 @@ const Conversation: React.FC = () => {
                         <div className="message-text">{message.content}</div>
                       )}
 
-                      <div className="message-time">{formatTime(message.createdAt)}</div>
+                      <div className="message-metadata">
+                        <span className="message-time">{formatTime(message.createdAt)}</span>
+                      </div>
                     </div>
                   </div>
                 </div>

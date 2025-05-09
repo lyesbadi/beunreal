@@ -17,6 +17,29 @@ ion-searchbar {
   --border-radius: 10px;
 }
 
+.conversation-segment {
+  background-color: var(--beunreal-surface);
+  --background: var(--beunreal-surface);
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--beunreal-border);
+}
+
+.conversation-segment ion-segment-button {
+  --color: var(--beunreal-text-secondary);
+  --color-checked: var(--beunreal-primary);
+  --indicator-color: var(--beunreal-primary);
+  min-height: 44px;
+  font-size: 13px;
+}
+
+.group-badge {
+  font-size: 10px;
+  --padding-start: 4px;
+  --padding-end: 4px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+
 .conversation-list {
   background-color: var(--beunreal-surface);
 }
@@ -139,6 +162,11 @@ ion-searchbar {
   max-width: 260px;
 }
 
+.empty-state-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .spinner-container {
   display: flex;
   flex-direction: column;
@@ -152,7 +180,26 @@ ion-searchbar {
   margin-bottom: 16px;
 }
 
-.new-chat-modal {
+.chat-fab {
+  margin-bottom: 16px;
+}
+
+.chat-popover .popover-list {
+  --background: var(--beunreal-surface);
+}
+
+.chat-popover .popover-list ion-item {
+  --background: transparent;
+  --color: var(--beunreal-text);
+  --border-color: var(--beunreal-border);
+}
+
+.chat-popover .popover-list ion-item ion-icon {
+  color: var(--beunreal-primary);
+}
+
+.new-chat-modal,
+.group-creator-modal {
   --border-radius: 16px;
   --width: 100%;
   --height: 80%;
@@ -160,12 +207,18 @@ ion-searchbar {
 
 /* Media Queries for larger screens */
 @media (min-width: 768px) {
-  .new-chat-modal {
-    --width: 400px;
-    --height: 500px;
+  .new-chat-modal,
+  .group-creator-modal {
+    --width: 500px;
+    --height: 600px;
   }
 
   .message-preview {
     max-width: 400px;
+  }
+
+  .conversation-list {
+    max-width: 768px;
+    margin: 0 auto;
   }
 }
