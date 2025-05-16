@@ -17,8 +17,9 @@ import {
   IonBackButton,
   useIonRouter,
 } from "@ionic/react";
-import { personAdd, arrowBack, logoInstagram } from "ionicons/icons";
+import { personAdd, arrowBack } from "ionicons/icons";
 import { register } from "../services/auth.service";
+import logoImage from "../assets/logo.png";
 import "./Register.css";
 
 const Register: React.FC = () => {
@@ -50,27 +51,27 @@ const Register: React.FC = () => {
     try {
       // Validate inputs
       if (!email || !username || !password || !confirmPassword) {
-        setErrorMessage("Please fill all fields");
+        setErrorMessage("Veuillez remplir tous les champs");
         return;
       }
 
       if (!validateEmail(email)) {
-        setErrorMessage("Please enter a valid email");
+        setErrorMessage("Veuillez entrer un email valide");
         return;
       }
 
       if (!validateUsername(username)) {
-        setErrorMessage("Username must be 3-20 characters and can only contain letters, numbers, underscores and dots");
+        setErrorMessage("Le nom d'utilisateur doit contenir de 3 à 20 caractères et peut uniquement contenir des lettres, chiffres, tirets bas et points");
         return;
       }
 
       if (!validatePassword(password)) {
-        setErrorMessage("Password must be at least 6 characters");
+        setErrorMessage("Le mot de passe doit comporter au moins 6 caractères");
         return;
       }
 
       if (password !== confirmPassword) {
-        setErrorMessage("Passwords do not match");
+        setErrorMessage("Les mots de passe ne correspondent pas");
         return;
       }
 
@@ -81,13 +82,13 @@ const Register: React.FC = () => {
       await register(email, username, password);
 
       // Redirect to home on success
-      router.push("/home", "root", "replace");
+      router.push("/app/home", "root", "replace");
     } catch (error) {
       console.error("Registration error:", error);
       if (error instanceof Error) {
         setErrorMessage(error.message);
       } else {
-        setErrorMessage("Failed to register. Please try again.");
+        setErrorMessage("Échec de l'inscription. Veuillez réessayer.");
       }
     } finally {
       setIsLoading(false);
@@ -107,9 +108,9 @@ const Register: React.FC = () => {
           <IonRow className="ion-justify-content-center">
             <IonCol size="12" size-md="8" size-lg="6" className="ion-text-center">
               <div className="logo-container">
-                <IonIcon icon={logoInstagram} className="logo-icon" />
+                <img src={logoImage} alt="Logo" className="app-logo" />
                 <h1 className="app-name">BeUnreal</h1>
-                <p className="tagline">Create your account and start sharing moments</p>
+                <p className="tagline">Créez votre compte et commencez à partager vos moments</p>
               </div>
 
               <div className="form-container">
@@ -124,7 +125,7 @@ const Register: React.FC = () => {
                 </IonItem>
 
                 <IonItem className="form-item">
-                  <IonLabel position="floating">Username</IonLabel>
+                  <IonLabel position="floating">Nom d'utilisateur</IonLabel>
                   <IonInput
                     value={username}
                     onIonChange={(e) => setUsername(e.detail.value!)}
@@ -134,12 +135,12 @@ const Register: React.FC = () => {
                 </IonItem>
 
                 <IonItem className="form-item">
-                  <IonLabel position="floating">Password</IonLabel>
+                  <IonLabel position="floating">Mot de passe</IonLabel>
                   <IonInput value={password} onIonChange={(e) => setPassword(e.detail.value!)} type="password" />
                 </IonItem>
 
                 <IonItem className="form-item">
-                  <IonLabel position="floating">Confirm Password</IonLabel>
+                  <IonLabel position="floating">Confirmer le mot de passe</IonLabel>
                   <IonInput
                     value={confirmPassword}
                     onIonChange={(e) => setConfirmPassword(e.detail.value!)}
@@ -155,14 +156,14 @@ const Register: React.FC = () => {
 
                 <IonButton expand="block" className="register-button" onClick={handleRegister} disabled={isLoading}>
                   <IonIcon slot="start" icon={personAdd} />
-                  Create Account
+                  Créer un compte
                 </IonButton>
 
                 <div className="login-link">
                   <IonText color="medium">
-                    Already have an account?{" "}
+                    Vous avez déjà un compte ?{" "}
                     <IonText color="primary" className="login-text" onClick={() => router.push("/login")}>
-                      Login
+                      Connexion
                     </IonText>
                   </IonText>
                 </div>
@@ -171,7 +172,7 @@ const Register: React.FC = () => {
           </IonRow>
         </IonGrid>
 
-        <IonLoading isOpen={isLoading} message={"Creating account..."} />
+        <IonLoading isOpen={isLoading} message={"Création du compte..."} />
       </IonContent>
     </IonPage>
   );

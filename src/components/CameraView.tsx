@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   IonHeader,
   IonToolbar,
@@ -10,7 +10,7 @@ import {
   IonSpinner,
   IonText,
 } from "@ionic/react";
-import { close, camera, flash, flashOff, camera as cameraIcon } from "ionicons/icons";
+import { close } from "ionicons/icons";
 import { takePicture } from "../services/camera.service";
 import { CameraResultType, CameraSource } from "@capacitor/camera";
 import "./CameraView.css";
@@ -21,13 +21,15 @@ interface CameraViewProps {
 }
 
 const CameraView: React.FC<CameraViewProps> = ({ onPhotoTaken, onClose }) => {
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [flashEnabled, setFlashEnabled] = useState<boolean>(false);
-  const [frontCamera, setFrontCamera] = useState<boolean>(false);
 
-  const handleTakePhoto = async () => {
+  // Ouvrir directement l'appareil photo dès le chargement du composant
+  useEffect(() => {
+    openNativeCamera();
+  }, []);
+
+  const openNativeCamera = async () => {
     try {
       setIsLoading(true);
       setError(null);
@@ -41,35 +43,21 @@ const CameraView: React.FC<CameraViewProps> = ({ onPhotoTaken, onClose }) => {
         height: 1600,
         correctOrientation: true,
         presentationStyle: "fullscreen",
-        promptLabelHeader: "Take a BeUnreal Photo",
-        promptLabelCancel: "Cancel",
-        promptLabelPhoto: "Take Photo",
         saveToGallery: false,
-        // We'll use a different approach to handle camera direction
-        // since Front and Rear are not properties of CameraSource
-        // direction: frontCamera ? CameraSource.Front : CameraSource.Rear,
-        // @ts-ignore - unofficial property but works in Capacitor
-        enableHighResolution: true,
       });
 
       if (photo && photo.webPath) {
-        setPreviewUrl(photo.webPath);
         onPhotoTaken(photo.webPath);
+      } else {
+        // Si aucune photo n'est prise (annulation), fermer le modal
+        onClose();
       }
     } catch (error) {
       console.error("Error taking photo:", error);
-      setError("Failed to take photo. Please check camera permissions.");
+      setError("Échec de la prise de photo. Veuillez vérifier les permissions de la caméra.");
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const toggleFlash = () => {
-    setFlashEnabled(!flashEnabled);
-  };
-
-  const toggleCamera = () => {
-    setFrontCamera(!frontCamera);
   };
 
   return (
@@ -81,15 +69,7 @@ const CameraView: React.FC<CameraViewProps> = ({ onPhotoTaken, onClose }) => {
               <IonIcon icon={close} />
             </IonButton>
           </IonButtons>
-          <IonTitle>Camera</IonTitle>
-          <IonButtons slot="end">
-            <IonButton onClick={toggleFlash} disabled={isLoading}>
-              <IonIcon icon={flashEnabled ? flash : flashOff} />
-            </IonButton>
-            <IonButton onClick={toggleCamera} disabled={isLoading}>
-              <IonIcon icon={cameraIcon} />
-            </IonButton>
-          </IonButtons>
+          <IonTitle>Caméra</IonTitle>
         </IonToolbar>
       </IonHeader>
 
@@ -97,32 +77,18 @@ const CameraView: React.FC<CameraViewProps> = ({ onPhotoTaken, onClose }) => {
         {isLoading ? (
           <div className="camera-loading">
             <IonSpinner name="crescent" />
-            <IonText>Taking photo...</IonText>
+            <IonText>Ouverture de l'appareil photo...</IonText>
           </div>
         ) : error ? (
           <div className="camera-error">
             <IonText color="danger">{error}</IonText>
-            <IonButton onClick={handleTakePhoto}>Try Again</IonButton>
+            <IonButton onClick={openNativeCamera}>Réessayer</IonButton>
           </div>
         ) : (
-          <div className="camera-container">
-            <div className="camera-overlay">
-              <div className="camera-grid">
-                <div className="grid-line horizontal-top"></div>
-                <div className="grid-line horizontal-middle"></div>
-                <div className="grid-line horizontal-bottom"></div>
-                <div className="grid-line vertical-left"></div>
-                <div className="grid-line vertical-middle"></div>
-                <div className="grid-line vertical-right"></div>
-              </div>
-            </div>
-
-            <div className="camera-controls">
-              <div className="camera-button-container">
-                <button className="capture-button" onClick={handleTakePhoto} disabled={isLoading}>
-                  <div className="capture-button-inner"></div>
-                </button>
-              </div>
+          <div className="camera-container" onClick={openNativeCamera}>
+            <div className="camera-instructions">
+              <IonText>Appuyez pour ouvrir l'appareil photo</IonText>
+              <IonButton onClick={openNativeCamera}>Ouvrir l'appareil photo</IonButton>
             </div>
           </div>
         )}

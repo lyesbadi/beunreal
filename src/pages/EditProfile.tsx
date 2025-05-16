@@ -77,16 +77,12 @@ const EditProfile: React.FC = () => {
     try {
       const photo = await takePicture({
         quality: 90,
-        allowEditing: true,
+        allowEditing: false,
         resultType: CameraResultType.Uri,
         source: CameraSource.Camera,
         width: 400,
         height: 400,
-        presentationStyle: "popover",
-        promptLabelHeader: "Update Profile Photo",
-        promptLabelCancel: "Cancel",
-        promptLabelPhoto: "Take Photo",
-        promptLabelPicture: "Choose from Gallery",
+        presentationStyle: "fullscreen",
       });
 
       if (photo && photo.webPath) {

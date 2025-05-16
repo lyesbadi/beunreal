@@ -1,169 +1,87 @@
 .camera-view-content {
   --background: #000;
-  --color: #fff;
-  position: relative;
   height: 100%;
-  width: 100%;
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
+  align-items: center;
 }
 
 .camera-container {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 100%;
-  width: 100%;
-  position: relative;
-}
-
-.camera-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-.camera-grid {
-  width: 100%;
-  height: 100%;
-  position: relative;
-}
-
-.grid-line {
-  position: absolute;
-  background-color: rgba(255, 255, 255, 0.3);
-}
-
-.horizontal-top,
-.horizontal-middle,
-.horizontal-bottom {
-  width: 100%;
-  height: 1px;
-  left: 0;
-}
-
-.horizontal-top {
-  top: 33.3%;
-}
-
-.horizontal-middle {
-  top: 50%;
-}
-
-.horizontal-bottom {
-  top: 66.6%;
-}
-
-.vertical-left,
-.vertical-middle,
-.vertical-right {
-  height: 100%;
-  width: 1px;
-  top: 0;
-}
-
-.vertical-left {
-  left: 33.3%;
-}
-
-.vertical-middle {
-  left: 50%;
-}
-
-.vertical-right {
-  left: 66.6%;
-}
-
-.camera-controls {
-  position: relative;
-  width: 100%;
-  padding: 20px 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 2;
-}
-
-.camera-button-container {
-  display: flex;
-  justify-content: center;
-  width: 100%;
-  padding: 20px 0;
-}
-
-.capture-button {
-  width: 70px;
-  height: 70px;
-  border-radius: 50%;
-  background-color: rgba(255, 255, 255, 0.3);
-  border: none;
-  padding: 0;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  background-color: #1a1a1a;
+  width: 100%;
+  height: 100%;
 }
 
-.capture-button:active {
-  transform: scale(0.95);
-  background-color: rgba(255, 255, 255, 0.4);
-}
-
-.capture-button-inner {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background-color: white;
-  border: 2px solid rgba(0, 0, 0, 0.3);
-}
-
-.capture-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.camera-loading,
-.camera-error {
+.camera-instructions {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  width: 100%;
+  gap: 20px;
+  text-align: center;
+  padding: 20px;
+}
+
+.camera-instructions ion-text {
+  color: #ffffff;
+  font-size: 18px;
+}
+
+.camera-instructions ion-button {
+  --background: var(--ion-color-primary);
+  --color: white;
+  --border-radius: 50px;
+  --padding-start: 20px;
+  --padding-end: 20px;
+  font-weight: 500;
+}
+
+.camera-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 16px;
+  width: 100%;
+  height: 100%;
 }
 
 .camera-loading ion-spinner {
+  --color: var(--ion-color-primary);
   width: 48px;
   height: 48px;
-  color: var(--ion-color-light);
+}
+
+.camera-loading ion-text {
+  color: #ffffff;
+  font-size: 16px;
 }
 
 .camera-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
   padding: 20px;
   text-align: center;
 }
 
 .camera-error ion-text {
-  margin-bottom: 16px;
   font-size: 16px;
 }
 
-/* Media Queries for larger screens */
+/* Media queries for larger screens */
 @media (min-width: 768px) {
-  .capture-button {
-    width: 80px;
-    height: 80px;
-  }
-
-  .capture-button-inner {
-    width: 64px;
-    height: 64px;
+  .camera-container {
+    max-width: 500px;
+    max-height: 80vh;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   }
 }

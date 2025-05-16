@@ -47,6 +47,12 @@ export const takePicture = async (options: PhotoOptions = {}): Promise<Photo> =>
     width: 1200,
     height: 1600,
     presentationStyle: "fullscreen",
+    source: CameraSource.Camera,
+    // Désactiver l'interface de prévisualisation
+    promptLabelHeader: "",
+    promptLabelCancel: "",
+    promptLabelPhoto: "",
+    promptLabelPicture: "",
   };
 
   // Merge default options with provided options
@@ -63,8 +69,8 @@ export const takePicture = async (options: PhotoOptions = {}): Promise<Photo> =>
     // Take the picture using native camera
     const photo = await Camera.getPhoto({
       ...cameraOptions,
-      // Force camera usage instead of gallery when using Camera source
-      source: options.source === CameraSource.Camera ? CameraSource.Camera : options.source || CameraSource.Camera,
+      // Forcer l'utilisation de la caméra native
+      source: CameraSource.Camera,
     });
 
     // If we're on the web platform, we need to get a dataUrl for storage

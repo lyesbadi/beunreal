@@ -46,7 +46,9 @@ import { CameraResultType, CameraSource } from "@capacitor/camera";
 import { createPost } from "../services/post.service";
 import CameraView from "../components/CameraView";
 import PostComposer from "../components/PostComposer";
+import StoryCircles from "../components/StoryCircles";
 import "./Home.css";
+import logoImage from "../assets/logo.png";
 
 const Home: React.FC = () => {
   const { user } = useAuthContext();
@@ -328,7 +330,10 @@ const Home: React.FC = () => {
     <IonPage className="home-page">
       <IonHeader>
         <IonToolbar>
-          <IonTitle>BeUnreal</IonTitle>
+          <div className="home-title-container">
+            <img src={logoImage} alt="Logo" className="header-logo" />
+            <IonTitle>BeUnreal</IonTitle>
+          </div>
         </IonToolbar>
       </IonHeader>
 
@@ -342,13 +347,8 @@ const Home: React.FC = () => {
           />
         </IonRefresher>
 
+        <StoryCircles />
         {renderPosts()}
-
-        <IonFab vertical="bottom" horizontal="center" slot="fixed" className="camera-fab">
-          <IonFabButton onClick={() => setShowCameraModal(true)}>
-            <IonIcon icon={camera} />
-          </IonFabButton>
-        </IonFab>
 
         {/* Camera Modal */}
         <IonModal isOpen={showCameraModal} onDidDismiss={() => setShowCameraModal(false)} className="camera-modal">

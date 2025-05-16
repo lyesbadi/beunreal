@@ -1,10 +1,12 @@
 import { LocalNotifications, ScheduleOptions, PendingLocalNotificationSchema } from "@capacitor/local-notifications";
 import { Preferences } from "@capacitor/preferences";
+import { Capacitor } from "@capacitor/core";
 
 // Key for notification settings in storage
 const NOTIFICATION_ENABLED_KEY = "notification_enabled";
 const NOTIFICATION_TIME_KEY = "notification_time";
 const NOTIFICATION_ID = "beunreal_daily";
+const LAST_NOTIFICATION_DATE_KEY = "last_notification_date";
 
 export interface NotificationSettings {
   enabled: boolean;
@@ -22,6 +24,29 @@ export const initNotifications = async (): Promise<void> => {
     if (permResult.display !== "granted") {
       await LocalNotifications.requestPermissions();
     }
+
+    // Configure notification channels for Android
+    if (Capacitor.getPlatform() === 'android') {
+      await LocalNotifications.createChannel({
+        id: NOTIFICATION_ID,
+        name: 'BeUnreal Daily Reminder',
+        description: 'Daily reminder to take your BeUnreal photo',
+        importance: 4, // High importance
+        vibration: true,
+        sound: 'default',
+        lights: true,
+        lightColor: '#0044CC'
+      });
+    }
+
+    // Setup notification listeners
+    LocalNotifications.addListener('localNotificationActionPerformed', async () => {
+      // Lorsque l'utilisateur agit sur une notification, on programme la suivante
+      const settings = await getNotificationSettings();
+      if (settings) {
+        scheduleTomorrowReminder(settings.time || "12:00");
+      }
+    });
   } catch (error) {
     console.error("Error initializing notifications:", error);
     throw error;
@@ -37,6 +62,16 @@ export const scheduleDailyReminder = async (time: string): Promise<void> => {
     // Cancel any existing notifications first
     await cancelAllNotifications();
 
+    // Check if we already sent a notification today
+    const today = new Date().toDateString();
+    const lastNotificationDate = await Preferences.get({ key: LAST_NOTIFICATION_DATE_KEY });
+    
+    if (lastNotificationDate.value === today) {
+      // Déjà envoyé aujourd'hui, programmer pour demain
+      await scheduleTomorrowReminder(time);
+      return;
+    }
+
     // Parse the time
     const [hours, minutes] = time.split(":").map(Number);
 
@@ -46,10 +81,11 @@ export const scheduleDailyReminder = async (time: string): Promise<void> => {
 
     // If the time is in the past for today, schedule for tomorrow
     if (scheduledTime.getTime() < now.getTime()) {
-      scheduledTime.setDate(scheduledTime.getDate() + 1);
+      await scheduleTomorrowReminder(time);
+      return;
     }
 
-    // Schedule the notification
+    // Schedule the notification for today
     const options: ScheduleOptions = {
       notifications: [
         {
@@ -58,11 +94,10 @@ export const scheduleDailyReminder = async (time: string): Promise<void> => {
           body: "Time to take your daily photo!",
           schedule: {
             at: scheduledTime,
-            repeats: true,
-            every: "day",
+            repeats: false, // Ne répète pas automatiquement
           },
           channelId: NOTIFICATION_ID,
-          smallIcon: "ic_stat_camera",
+          smallIcon: "ic_stat_logo",
           iconColor: "#0044CC",
         },
       ],
@@ -77,6 +112,51 @@ export const scheduleDailyReminder = async (time: string): Promise<void> => {
     });
   } catch (error) {
     console.error("Error scheduling notification:", error);
+    throw error;
+  }
+};
+
+/**
+ * Schedule a reminder for tomorrow
+ * @param time Time in 'HH:MM' format (24-hour)
+ */
+export const scheduleTomorrowReminder = async (time: string): Promise<void> => {
+  try {
+    // Parse the time
+    const [hours, minutes] = time.split(":").map(Number);
+    
+    // Create a Date object for tomorrow with the specified time
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(hours, minutes, 0, 0);
+    
+    // Schedule the notification
+    const options: ScheduleOptions = {
+      notifications: [
+        {
+          id: 1,
+          title: "BeUnreal Reminder",
+          body: "Time to take your daily photo!",
+          schedule: {
+            at: tomorrow,
+            repeats: false,
+          },
+          channelId: NOTIFICATION_ID,
+          smallIcon: "ic_stat_logo",
+          iconColor: "#0044CC",
+        },
+      ],
+    };
+    
+    await LocalNotifications.schedule(options);
+    
+    // Save the date of the last scheduled notification
+    await Preferences.set({
+      key: LAST_NOTIFICATION_DATE_KEY,
+      value: new Date().toDateString(),
+    });
+  } catch (error) {
+    console.error("Error scheduling tomorrow notification:", error);
     throw error;
   }
 };

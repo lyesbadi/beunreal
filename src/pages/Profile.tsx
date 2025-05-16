@@ -48,7 +48,6 @@ const Profile: React.FC = () => {
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [selectedSegment, setSelectedSegment] = useState<string>("posts");
   const [showActionSheet, setShowActionSheet] = useState<boolean>(false);
   const [showLogoutAlert, setShowLogoutAlert] = useState<boolean>(false);
 
@@ -81,10 +80,6 @@ const Profile: React.FC = () => {
     }
   };
 
-  const handleSegmentChange = (value: string) => {
-    setSelectedSegment(value);
-  };
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -98,16 +93,12 @@ const Profile: React.FC = () => {
     try {
       const photo = await takePicture({
         quality: 90,
-        allowEditing: true,
+        allowEditing: false,
         resultType: CameraResultType.Uri,
         source: CameraSource.Camera,
         width: 400,
         height: 400,
-        presentationStyle: "popover",
-        promptLabelHeader: "Update Profile Photo",
-        promptLabelCancel: "Cancel",
-        promptLabelPhoto: "Take Photo",
-        promptLabelPicture: "Choose from Gallery",
+        presentationStyle: "fullscreen",
       });
 
       if (photo && photo.webPath) {
@@ -223,16 +214,6 @@ const Profile: React.FC = () => {
     );
   };
 
-  const renderSavedPosts = () => {
-    return (
-      <div className="empty-state">
-        <IonIcon className="empty-state-icon" icon={lockClosed} />
-        <h2 className="empty-state-title">Saved Posts</h2>
-        <p className="empty-state-message">When you save posts, they'll appear here</p>
-      </div>
-    );
-  };
-
   return (
     <IonPage className="profile-page">
       <IonHeader>
@@ -257,20 +238,7 @@ const Profile: React.FC = () => {
         {renderProfileHeader()}
 
         <div className="profile-content">
-          <IonSegment
-            value={selectedSegment}
-            onIonChange={(e) => handleSegmentChange(e.detail.value!)}
-            className="profile-segment"
-          >
-            <IonSegmentButton value="posts">
-              <IonIcon icon={grid} />
-            </IonSegmentButton>
-            <IonSegmentButton value="saved">
-              <IonIcon icon={lockClosed} />
-            </IonSegmentButton>
-          </IonSegment>
-
-          {selectedSegment === "posts" ? renderPosts() : renderSavedPosts()}
+          {renderPosts()}
         </div>
 
         {/* Action Sheet for profile options */}

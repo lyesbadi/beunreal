@@ -10,12 +10,19 @@ import {
   setupIonicReact,
   IonSpinner,
   IonLoading,
+  IonModal,
 } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
 import { Route, Redirect } from "react-router";
 import { camera, image, settings, chatbubble, search, people } from "ionicons/icons";
 import { isAuthenticated } from "./services/auth.service";
 import { AuthProvider } from "./contexts/AuthContext";
+import CameraView from "./components/CameraView";
+import PostComposer from "./components/PostComposer";
+import { takePicture } from "./services/camera.service";
+import { createPost } from "./services/post.service";
+import { CameraResultType, CameraSource } from "@capacitor/camera";
+import { initLanguage } from "./services/i18n.service";
 
 /* Core CSS required for Ionic components to work properly */
 import "@ionic/react/css/core.css";
@@ -94,6 +101,47 @@ const ProtectedRoute: React.FC<{
 };
 
 const App: React.FC = () => {
+  const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
+  const [showComposer, setShowComposer] = useState<boolean>(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+
+  // Initialize language settings when app starts
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        // Initialize language from saved preferences
+        await initLanguage();
+      } catch (error) {
+        console.error("Error initializing app:", error);
+      }
+    };
+
+    initApp();
+  }, []);
+
+  const handlePhotoTaken = (webPath: string) => {
+    setCapturedImage(webPath);
+    setShowCameraModal(false);
+    setShowComposer(true);
+  };
+
+  const handlePublishPost = async (caption: string) => {
+    try {
+      if (!capturedImage) return;
+
+      await createPost(capturedImage, caption);
+
+      // Reset states
+      setCapturedImage(null);
+      setShowComposer(false);
+
+      // Reload feed if needed
+      window.location.reload();
+    } catch (error) {
+      console.error("Error publishing post:", error);
+    }
+  };
+
   return (
     <AuthProvider>
       <IonApp>
@@ -127,7 +175,11 @@ const App: React.FC = () => {
                   <IonIcon aria-hidden="true" icon={search} />
                   <IonLabel>Search</IonLabel>
                 </IonTabButton>
-                <IonTabButton tab="capture" href="/app/home" className="capture-tab">
+                <IonTabButton 
+                  tab="capture" 
+                  onClick={() => setShowCameraModal(true)} 
+                  className="capture-tab"
+                >
                   <div className="capture-button-wrapper">
                     <IonIcon aria-hidden="true" icon={camera} className="capture-icon" />
                   </div>
@@ -142,6 +194,30 @@ const App: React.FC = () => {
                 </IonTabButton>
               </IonTabBar>
             </IonTabs>
+
+            {/* Camera Modal */}
+            <IonModal isOpen={showCameraModal} onDidDismiss={() => setShowCameraModal(false)} className="camera-modal">
+              <CameraView onPhotoTaken={handlePhotoTaken} onClose={() => setShowCameraModal(false)} />
+            </IonModal>
+
+            {/* Post Composer */}
+            <IonModal
+              isOpen={showComposer}
+              onDidDismiss={() => {
+                setShowComposer(false);
+                setCapturedImage(null);
+              }}
+              className="composer-modal"
+            >
+              <PostComposer
+                imageUrl={capturedImage || ""}
+                onPublish={handlePublishPost}
+                onCancel={() => {
+                  setShowComposer(false);
+                  setCapturedImage(null);
+                }}
+              />
+            </IonModal>
           </Route>
 
           <Route exact path="/">

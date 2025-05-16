@@ -21,6 +21,15 @@
   animation: fade-in 0.8s ease-in-out;
 }
 
+.app-logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  border-radius: 16px;
+  margin: 0 auto;
+  display: block;
+}
+
 .logo-icon {
   font-size: 48px;
   color: var(--ion-color-dark);
@@ -31,7 +40,8 @@
   font-weight: 700;
   margin-top: 8px;
   margin-bottom: 4px;
-  color: var(--ion-color-dark);
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .tagline {
@@ -121,9 +131,12 @@
     --background: var(--ion-background-color-dark, #121212);
   }
 
-  .logo-icon,
-  .app-name {
+  .logo-icon {
     color: var(--ion-color-light);
+  }
+  
+  .app-name {
+    color: #ffffff;
   }
 
   .form-container {

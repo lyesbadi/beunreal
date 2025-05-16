@@ -24,14 +24,11 @@ import {
   IonSegment,
   IonSegmentButton,
   IonBadge,
-  IonPopover,
-  IonActionSheet,
 } from "@ionic/react";
-import { pencil, chevronForward, personAdd, search, people, chevronDownCircle, add, addOutline } from "ionicons/icons";
+import { pencil, chevronForward, personAdd, search, people, chevronDownCircle, add, chatbubble } from "ionicons/icons";
 import { useAuthContext } from "../contexts/AuthContext";
 import { getConversations, ConversationWithUsers } from "../services/chat.service";
 import NewChatModal from "../components/NewChatModal";
-import GroupChatCreator from "../components/GroupChatCreator";
 import "./Chat.css";
 
 const Chat: React.FC = () => {
@@ -42,10 +39,7 @@ const Chat: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchText, setSearchText] = useState<string>("");
   const [showNewChatModal, setShowNewChatModal] = useState<boolean>(false);
-  const [showGroupCreator, setShowGroupCreator] = useState<boolean>(false);
-  const [fabPopoverOpen, setFabPopoverOpen] = useState<boolean>(false);
   const [conversationType, setConversationType] = useState<string>("all");
-  const [showActionSheet, setShowActionSheet] = useState<boolean>(false);
 
   useEffect(() => {
     loadConversations();
@@ -75,30 +69,11 @@ const Chat: React.FC = () => {
 
   const handleNewChat = () => {
     setShowNewChatModal(true);
-    setFabPopoverOpen(false);
-  };
-
-  const handleNewGroupChat = () => {
-    setShowGroupCreator(true);
-    setFabPopoverOpen(false);
-  };
-
-  const handleFabClick = (e: any) => {
-    e.persist();
-    setFabPopoverOpen(true);
   };
 
   const handleNewChatSuccess = () => {
     setShowNewChatModal(false);
     loadConversations();
-  };
-
-  const handleGroupCreated = (conversationId: string) => {
-    setShowGroupCreator(false);
-    loadConversations();
-
-    // Navigate to the new conversation
-    router.push(`/app/conversation/${conversationId}`);
   };
 
   const formatLastMessageTime = (timestamp: number) => {
@@ -121,7 +96,7 @@ const Chat: React.FC = () => {
       date.getFullYear() === yesterday.getFullYear();
 
     if (isYesterday) {
-      return "Yesterday";
+      return "Hier";
     }
 
     return date.toLocaleDateString([], { month: "short", day: "numeric" });
@@ -176,7 +151,7 @@ const Chat: React.FC = () => {
           </div>
 
           <IonLabel>
-            <h2>{conversation.groupName || "Group Chat"}</h2>
+            <h2>{conversation.groupName || "Groupe"}</h2>
             {conversation.lastMessage && <p className="message-preview">{conversation.lastMessage.content}</p>}
           </IonLabel>
 
@@ -214,7 +189,7 @@ const Chat: React.FC = () => {
             {conversation.lastMessage && (
               <p className="message-preview">
                 {conversation.lastMessage.senderId === user?.id ? (
-                  <span className="message-preview-you">You: </span>
+                  <span className="message-preview-you">Vous: </span>
                 ) : null}
                 {conversation.lastMessage.content}
               </p>
@@ -235,43 +210,36 @@ const Chat: React.FC = () => {
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="spinner-container">
+        <div className="loading-container">
           <IonSpinner name="crescent" />
-          <IonText color="medium">
-            <p>Loading conversations...</p>
-          </IonText>
-        </div>
-      );
-    }
-
-    if (conversations.length === 0) {
-      return (
-        <div className="empty-state">
-          <IonIcon icon={personAdd} className="empty-state-icon" />
-          <h2 className="empty-state-title">No Messages Yet</h2>
-          <p className="empty-state-message">Start a conversation with someone</p>
-          <div className="empty-state-actions">
-            <IonButton onClick={handleNewChat}>New Message</IonButton>
-            <IonButton onClick={handleNewGroupChat} fill="outline">
-              New Group
-            </IonButton>
-          </div>
+          <IonText color="medium">Chargement des conversations...</IonText>
         </div>
       );
     }
 
     if (filteredConversations.length === 0) {
+      if (searchText) {
+        return (
+          <div className="empty-state">
+            <IonText color="medium">Aucune conversation ne correspond à votre recherche</IonText>
+          </div>
+        );
+      }
+
       return (
         <div className="empty-state">
-          <IonIcon icon={search} className="empty-state-icon" />
-          <h2 className="empty-state-title">No Results</h2>
-          <p className="empty-state-message">No conversations found for "{searchText}"</p>
-          <IonButton onClick={() => setSearchText("")}>Clear Search</IonButton>
+          <IonIcon icon={chatbubble} className="empty-icon" />
+          <IonText color="medium">Aucune conversation pour le moment</IonText>
+          <IonText color="medium">Appuyez sur le + pour commencer à discuter</IonText>
         </div>
       );
     }
 
-    return <IonList className="conversation-list">{filteredConversations.map(renderConversationItem)}</IonList>;
+    return (
+      <IonList className="conversation-list">
+        {filteredConversations.map((conversation) => renderConversationItem(conversation))}
+      </IonList>
+    );
   };
 
   return (
@@ -280,79 +248,58 @@ const Chat: React.FC = () => {
         <IonToolbar>
           <IonTitle>Messages</IonTitle>
         </IonToolbar>
-      </IonHeader>
-
-      <IonContent fullscreen>
-        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
-          <IonRefresherContent
-            pullingIcon={chevronDownCircle}
-            pullingText="Pull to refresh"
-            refreshingSpinner="circles"
-            refreshingText="Refreshing..."
-          />
-        </IonRefresher>
-
-        <div className="search-container">
+        <IonToolbar>
           <IonSearchbar
             value={searchText}
             onIonChange={handleSearchChange}
-            placeholder="Search conversations"
-            debounce={300}
+            placeholder="Rechercher"
             animated
-            showClearButton="always"
+            className="chat-searchbar"
           />
-        </div>
+          <IonSegment value={conversationType} onIonChange={(e) => setConversationType(e.detail.value!)}>
+            <IonSegmentButton value="all">
+              <IonLabel>Tous</IonLabel>
+            </IonSegmentButton>
+            <IonSegmentButton value="direct">
+              <IonLabel>Directs</IonLabel>
+            </IonSegmentButton>
+            <IonSegmentButton value="group">
+              <IonLabel className="group-label">
+                Groupes
+                {conversations.filter((c) => c.isGroup).length > 0 && (
+                  <IonBadge color="primary" className="group-badge">
+                    {conversations.filter((c) => c.isGroup).length}
+                  </IonBadge>
+                )}
+              </IonLabel>
+            </IonSegmentButton>
+          </IonSegment>
+        </IonToolbar>
+      </IonHeader>
 
-        <IonSegment
-          value={conversationType}
-          onIonChange={(e) => setConversationType(e.detail.value!)}
-          className="conversation-segment"
-        >
-          <IonSegmentButton value="all">
-            <IonLabel>All</IonLabel>
-          </IonSegmentButton>
-          <IonSegmentButton value="direct">
-            <IonLabel>Direct</IonLabel>
-          </IonSegmentButton>
-          <IonSegmentButton value="group">
-            <IonLabel>Groups</IonLabel>
-            <IonBadge color="primary" className="group-badge">
-              {conversations.filter((c) => c.isGroup).length}
-            </IonBadge>
-          </IonSegmentButton>
-        </IonSegment>
+      <IonContent>
+        <IonRefresher slot="fixed" onIonRefresh={handleRefresh}>
+          <IonRefresherContent
+            pullingIcon={chevronDownCircle}
+            pullingText="Tirer pour rafraîchir"
+            refreshingSpinner="circles"
+            refreshingText="Chargement..."
+          />
+        </IonRefresher>
 
         {renderContent()}
 
-        <IonFab vertical="bottom" horizontal="end" slot="fixed" className="chat-fab">
-          <IonFabButton onClick={handleFabClick}>
+        <IonFab vertical="bottom" horizontal="end" slot="fixed">
+          <IonFabButton onClick={handleNewChat}>
             <IonIcon icon={add} />
           </IonFabButton>
-
-          <IonPopover isOpen={fabPopoverOpen} onDidDismiss={() => setFabPopoverOpen(false)} className="chat-popover">
-            <IonList className="popover-list">
-              <IonItem button onClick={handleNewChat} detail={false}>
-                <IonIcon slot="start" icon={personAdd} />
-                <IonLabel>New Message</IonLabel>
-              </IonItem>
-              <IonItem button onClick={handleNewGroupChat} detail={false}>
-                <IonIcon slot="start" icon={people} />
-                <IonLabel>New Group</IonLabel>
-              </IonItem>
-            </IonList>
-          </IonPopover>
         </IonFab>
 
-        <IonModal isOpen={showNewChatModal} onDidDismiss={() => setShowNewChatModal(false)} className="new-chat-modal">
-          <NewChatModal onClose={() => setShowNewChatModal(false)} onSuccess={handleNewChatSuccess} />
-        </IonModal>
-
-        <IonModal
-          isOpen={showGroupCreator}
-          onDidDismiss={() => setShowGroupCreator(false)}
-          className="group-creator-modal"
-        >
-          <GroupChatCreator onClose={() => setShowGroupCreator(false)} onSuccess={handleGroupCreated} />
+        <IonModal isOpen={showNewChatModal} onDidDismiss={() => setShowNewChatModal(false)}>
+          <NewChatModal 
+            onClose={() => setShowNewChatModal(false)} 
+            onSuccess={handleNewChatSuccess} 
+          />
         </IonModal>
       </IonContent>
     </IonPage>

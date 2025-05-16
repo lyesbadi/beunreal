@@ -14,15 +14,13 @@ export interface Story {
   createdAt: number;
   expiresAt: number; // 24 hours after creation
   locationName?: string;
+  likes?: string[]; // Tableau des IDs des utilisateurs qui ont aimé la story
 }
 
 export interface StoryWithUser extends Story {
-  user: {
-    id: string;
-    username: string;
-    profilePicture?: string;
-  };
+  user: User;
   viewed: boolean;
+  location?: GeolocationCoordinates; // Ajouté pour maintenir la compatibilité
 }
 
 /**
@@ -162,7 +160,7 @@ export const getFeedStories = async (): Promise<StoryWithUser[]> => {
     feedStories.sort((a, b) => b.createdAt - a.createdAt);
 
     // Get user data for each story
-    const storiesWithUsers: StoryWithUser[] = await Promise.all(
+    const storiesWithUsers = await Promise.all(
       feedStories.map(async (story) => {
         const user = await getUserById(story.userId);
 
@@ -172,11 +170,7 @@ export const getFeedStories = async (): Promise<StoryWithUser[]> => {
 
         return {
           ...story,
-          user: {
-            id: user.id,
-            username: user.username,
-            profilePicture: user.profilePicture,
-          },
+          user,
           viewed: viewedStories.includes(story.id),
         };
       })
@@ -258,7 +252,7 @@ export const getNearbyStories = async (maxDistance: number = 20): Promise<StoryW
     });
 
     // Get user data for each story
-    const storiesWithUsers: StoryWithUser[] = await Promise.all(
+    const storiesWithUsers = await Promise.all(
       nearbyStories.map(async (story: Story) => {
         const user = await getUserById(story.userId);
 
@@ -268,11 +262,7 @@ export const getNearbyStories = async (maxDistance: number = 20): Promise<StoryW
 
         return {
           ...story,
-          user: {
-            id: user.id,
-            username: user.username,
-            profilePicture: user.profilePicture,
-          },
+          user,
           viewed: viewedStories.includes(story.id),
         };
       })
@@ -352,6 +342,114 @@ export const deleteStory = async (storyId: string): Promise<boolean> => {
     return true;
   } catch (error) {
     console.error("Error deleting story:", error);
+    throw error;
+  }
+};
+
+/**
+ * Save all stories to storage
+ * @param stories Stories to save
+ */
+const saveAllStories = async (stories: Story[]): Promise<void> => {
+  try {
+    await Preferences.set({
+      key: STORIES_STORAGE_KEY,
+      value: JSON.stringify(stories),
+    });
+  } catch (error) {
+    console.error("Error saving stories:", error);
+    throw error;
+  }
+};
+
+/**
+ * Ajoute un like à une story
+ * @param storyId ID de la story
+ * @returns Promise avec le résultat de l'opération
+ */
+export const likeStory = async (storyId: string): Promise<boolean> => {
+  try {
+    console.debug("likeStory", { storyId });
+
+    const stories = await getAllStories();
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      throw new Error("User not authenticated");
+    }
+
+    // Trouver la story à liker
+    const storyIndex = stories.findIndex((s) => s.id === storyId);
+    if (storyIndex === -1) {
+      throw new Error("Story not found");
+    }
+
+    // Ajouter le like s'il n'existe pas déjà
+    const story = stories[storyIndex];
+    const likes = story.likes || [];
+    
+    if (!likes.includes(currentUser.id)) {
+      likes.push(currentUser.id);
+      story.likes = likes;
+      
+      // Mettre à jour la story dans le stockage
+      stories[storyIndex] = story;
+      await saveAllStories(stories);
+      
+      console.info("Story liked successfully", { storyId });
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("Error liking story", { storyId, error });
+    throw error;
+  }
+};
+
+/**
+ * Retire un like d'une story
+ * @param storyId ID de la story
+ * @returns Promise avec le résultat de l'opération
+ */
+export const unlikeStory = async (storyId: string): Promise<boolean> => {
+  try {
+    console.debug("unlikeStory", { storyId });
+
+    const stories = await getAllStories();
+    const currentUser = await getCurrentUser();
+
+    if (!currentUser) {
+      throw new Error("User not authenticated");
+    }
+
+    // Trouver la story
+    const storyIndex = stories.findIndex((s) => s.id === storyId);
+    if (storyIndex === -1) {
+      throw new Error("Story not found");
+    }
+
+    // Retirer le like s'il existe
+    const story = stories[storyIndex];
+    if (!story.likes) {
+      return false;
+    }
+    
+    const likeIndex = story.likes.indexOf(currentUser.id);
+    if (likeIndex !== -1) {
+      story.likes.splice(likeIndex, 1);
+      
+      // Mettre à jour la story dans le stockage
+      stories[storyIndex] = story;
+      await saveAllStories(stories);
+      
+      console.info("Story unliked successfully", { storyId });
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("Error unliking story", { storyId, error });
     throw error;
   }
 };

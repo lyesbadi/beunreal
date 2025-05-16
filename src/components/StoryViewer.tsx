@@ -18,19 +18,25 @@ import {
   IonInput,
   IonToast,
   IonActionSheet,
+  IonBadge,
 } from "@ionic/react";
 import {
   close,
   locationOutline,
   timeOutline,
   heart,
+  heartOutline,
   chatbubbleOutline,
   ellipsisVertical,
   send,
   chevronBack,
   chevronForward,
+  thumbsUp,
+  happy,
+  sad,
+  flame,
 } from "ionicons/icons";
-import { StoryWithUser, markStoryAsViewed, deleteStory } from "../services/story.service";
+import { StoryWithUser, markStoryAsViewed, deleteStory, likeStory, unlikeStory } from "../services/story.service";
 import { useAuthContext } from "../contexts/AuthContext";
 import "./StoryViewer.css";
 
@@ -41,6 +47,20 @@ interface StoryViewerProps {
   onDelete?: (storyId: string) => void;
 }
 
+interface Reaction {
+  icon: string;
+  label: string;
+  color: string;
+}
+
+const REACTIONS: Reaction[] = [
+  { icon: heart, label: "J'aime", color: "danger" },
+  { icon: thumbsUp, label: "Super", color: "primary" },
+  { icon: happy, label: "Haha", color: "warning" },
+  { icon: sad, label: "Triste", color: "medium" },
+  { icon: flame, label: "Wow", color: "tertiary" },
+];
+
 const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, onClose, onDelete }) => {
   const { user } = useAuthContext();
   const [currentIndex, setCurrentIndex] = useState<number>(initialIndex);
@@ -48,9 +68,11 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showActionSheet, setShowActionSheet] = useState<boolean>(false);
+  const [showReactions, setShowReactions] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
   const [showToast, setShowToast] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string>("");
+  const [likes, setLikes] = useState<Record<string, boolean>>({});
 
   // Changer le type de timer de number à NodeJS.Timeout | null
   const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -60,6 +82,13 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
   const currentStory = stories[currentIndex];
 
   useEffect(() => {
+    // Initialize likes
+    const initialLikes: Record<string, boolean> = {};
+    stories.forEach(story => {
+      initialLikes[story.id] = story.likes && user ? story.likes.includes(user.id) : false;
+    });
+    setLikes(initialLikes);
+
     // Reset progress when story changes
     setProgress(0);
     setIsLoading(true);
@@ -106,7 +135,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
         clearInterval(progressTimerRef.current);
       }
     };
-  }, [currentIndex, isPaused, stories]);
+  }, [currentIndex, isPaused, stories, user]);
 
   const handlePrevStory = () => {
     if (currentIndex > 0) {
@@ -163,10 +192,48 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
   const handleSendMessage = () => {
     if (!message.trim() || !currentStory) return;
 
-    // TODO: Implement sending message in response to story
-    setToastMessage("Message sent!");
+    // Placeholder message functionality
+    setToastMessage("Message envoyé!");
     setShowToast(true);
     setMessage("");
+  };
+
+  const handleLikeStory = async (reaction?: Reaction) => {
+    if (!currentStory || !user) return;
+
+    try {
+      setIsPaused(true);
+      
+      // Toggle like status in state for immediate feedback
+      const isLiked = likes[currentStory.id];
+      const newLikes = { ...likes };
+      newLikes[currentStory.id] = !isLiked;
+      setLikes(newLikes);
+
+      if (isLiked) {
+        await unlikeStory(currentStory.id);
+        setToastMessage("Like retiré");
+      } else {
+        await likeStory(currentStory.id);
+        setToastMessage(reaction ? `Réaction "${reaction.label}" envoyée!` : "Story likée!");
+      }
+      
+      setShowToast(true);
+      setShowReactions(false);
+    } catch (error) {
+      console.error("Error liking/unliking story:", error);
+      setToastMessage("Une erreur est survenue");
+      setShowToast(true);
+      
+      // Revert on error
+      const newLikes = { ...likes };
+      newLikes[currentStory.id] = !newLikes[currentStory.id];
+      setLikes(newLikes);
+    } finally {
+      setTimeout(() => {
+        setIsPaused(false);
+      }, 500);
+    }
   };
 
   const formatTime = (timestamp: number) => {
@@ -180,16 +247,16 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
     const diffMins = Math.floor(diffMs / 60000);
 
     if (diffMins < 1) {
-      return "Just now";
+      return "À l'instant";
     } else if (diffMins < 60) {
-      return `${diffMins}m ago`;
+      return `Il y a ${diffMins}m`;
     } else {
       const diffHours = Math.floor(diffMins / 60);
       if (diffHours < 24) {
-        return `${diffHours}h ago`;
+        return `Il y a ${diffHours}h`;
       } else {
         const diffDays = Math.floor(diffHours / 24);
-        return `${diffDays}d ago`;
+        return `Il y a ${diffDays}j`;
       }
     }
   };
@@ -286,14 +353,52 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
           <img src={currentStory.photoData.webPath} alt="Story" className="story-image" onLoad={handleImageLoad} />
         </div>
 
+        {showReactions && (
+          <div 
+            className="reactions-container"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {REACTIONS.map((reaction, index) => (
+              <div 
+                key={index} 
+                className="reaction-button"
+                onClick={() => handleLikeStory(reaction)}
+              >
+                <IonIcon icon={reaction.icon} color={reaction.color} />
+                <span>{reaction.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         <IonFooter className="story-footer">
+          <div className="story-actions">
+            <IonButton 
+              fill="clear" 
+              color={likes[currentStory.id] ? "danger" : "light"}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowReactions(!showReactions);
+                if (showReactions) {
+                  handleLikeStory();
+                }
+              }}
+            >
+              <IonIcon slot="icon-only" icon={likes[currentStory.id] ? heart : heartOutline} />
+            </IonButton>
+            <IonBadge color="light" className="story-stat">
+              {(currentStory.likes?.length || 0) + (likes[currentStory.id] ? 1 : 0)}
+            </IonBadge>
+          </div>
+          
           <div className="message-container">
             <IonItem lines="none" className="message-input-item">
               <IonInput
                 value={message}
                 onIonChange={(e) => setMessage(e.detail.value!)}
-                placeholder="Reply to story..."
+                placeholder="Répondre à la story..."
                 className="message-input"
+                onClick={(e) => e.stopPropagation()}
               />
               <IonButton
                 fill="clear"
@@ -315,12 +420,12 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
         onDidDismiss={() => setShowActionSheet(false)}
         buttons={[
           {
-            text: "Delete Story",
+            text: "Supprimer la story",
             role: "destructive",
             handler: handleDeleteStory,
           },
           {
-            text: "Cancel",
+            text: "Annuler",
             role: "cancel",
           },
         ]}

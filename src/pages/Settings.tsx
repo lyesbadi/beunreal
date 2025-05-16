@@ -14,15 +14,29 @@ import {
   IonModal,
   IonButton,
   IonIcon,
-  IonItemDivider,
   IonAlert,
   IonCard,
   IonCardContent,
   IonNote,
   IonBadge,
   IonSpinner,
+  IonBackButton,
+  IonButtons,
+  IonSelect,
+  IonSelectOption,
 } from "@ionic/react";
-import { notifications, trash, time, arrowBack } from "ionicons/icons";
+import {
+  notifications,
+  trash,
+  time,
+  arrowBack,
+  checkmarkCircle,
+  informationCircle,
+  moon,
+  globe,
+  language,
+  lockClosed,
+} from "ionicons/icons";
 import {
   getNotificationSettings,
   saveNotificationSettings,
@@ -31,9 +45,24 @@ import {
   getPendingNotifications,
 } from "../services/notification.service";
 import { deleteAllPhotos } from "../services/storage.service";
+import { 
+  changeLanguage, 
+  getLanguagePreference,
+  initLanguage
+} from "../services/i18n.service";
+import { useTranslation } from "react-i18next";
+import logoImage from "../assets/logo.png";
 import "./Settings.css";
 
+// Fonction helper pour garantir que t() retourne toujours une chaîne
+const translate = (key: string, options?: any): string => {
+  const { t } = useTranslation();
+  const translation = t(key, options);
+  return translation || key;
+};
+
 const Settings: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(false);
   const [notificationTime, setNotificationTime] = useState<string>("12:00");
   const [showTimePicker, setShowTimePicker] = useState<boolean>(false);
@@ -42,6 +71,7 @@ const Settings: React.FC = () => {
   const [alertMessage, setAlertMessage] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const [currentLanguage, setCurrentLanguage] = useState<string>("fr");
 
   // Load notification settings on component mount
   useEffect(() => {
@@ -63,6 +93,11 @@ const Settings: React.FC = () => {
         // Get pending notifications count
         const pendingNotifications = await getPendingNotifications();
         setPendingCount(pendingNotifications.length);
+
+        // Initialiser la langue
+        await initLanguage();
+        const savedLanguage = await getLanguagePreference();
+        setCurrentLanguage(savedLanguage);
       } catch (error) {
         console.error("Error loading settings:", error);
       } finally {
@@ -85,7 +120,7 @@ const Settings: React.FC = () => {
       setPendingCount(pendingNotifications.length);
 
       setAlertMessage(
-        enabled ? `Notifications enabled at ${formatTimeDisplay(notificationTime)}` : "Notifications disabled"
+        enabled ? `${t('settings.notifications.enabled') as string} ${formatTimeDisplay(notificationTime)}` : t('settings.notifications.disabled') as string
       );
       setShowSuccessAlert(true);
     } catch (error) {
@@ -126,7 +161,7 @@ const Settings: React.FC = () => {
       setPendingCount(pendingNotifications.length);
 
       setShowTimePicker(false);
-      setAlertMessage(`Notification time updated to ${formatTimeDisplay(notificationTime)}`);
+      setAlertMessage(`${t('settings.alerts.timeUpdated') as string} ${formatTimeDisplay(notificationTime)}`);
       setShowSuccessAlert(true);
     } catch (error) {
       console.error("Error saving notification time:", error);
@@ -152,10 +187,26 @@ const Settings: React.FC = () => {
       setPendingCount(pendingNotifications.length);
 
       setShowClearDataAlert(false);
-      setAlertMessage("All data has been cleared successfully");
+      setAlertMessage(t('settings.alerts.dataCleared') as string);
       setShowSuccessAlert(true);
     } catch (error) {
       console.error("Error clearing data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle language change
+  const handleLanguageChange = async (language: string) => {
+    try {
+      setIsLoading(true);
+      await changeLanguage(language);
+      setCurrentLanguage(language);
+      
+      setAlertMessage(t('settings.alerts.languageChanged') as string);
+      setShowSuccessAlert(true);
+    } catch (error) {
+      console.error("Error changing language:", error);
     } finally {
       setIsLoading(false);
     }
@@ -174,85 +225,123 @@ const Settings: React.FC = () => {
   };
 
   return (
-    <IonPage>
+    <IonPage className="settings-page">
       <IonHeader>
         <IonToolbar color="primary">
-          <IonTitle>Settings</IonTitle>
+          <IonButtons slot="start">
+            <IonBackButton defaultHref="/app/profile" text="" />
+          </IonButtons>
+          <IonTitle>{t('settings.title')}</IonTitle>
         </IonToolbar>
       </IonHeader>
       <IonContent fullscreen>
-        <IonList>
-          <IonItemDivider color="light">
-            <IonLabel>Notifications</IonLabel>
-          </IonItemDivider>
-
-          <IonItem>
-            <IonIcon icon={notifications} slot="start" color="primary"></IonIcon>
-            <IonLabel>Daily Reminder</IonLabel>
-            {isLoading ? (
-              <IonSpinner name="dots" slot="end" />
-            ) : (
-              <IonToggle
-                checked={notificationsEnabled}
-                onIonChange={(e) => handleToggleNotifications(e.detail.checked)}
-                slot="end"
-              />
-            )}
-          </IonItem>
-
-          <IonItem button detail onClick={() => setShowTimePicker(true)}>
-            <IonIcon icon={time} slot="start" color="primary"></IonIcon>
-            <IonLabel>Notification Time</IonLabel>
-            <IonText slot="end" color="medium">
-              {formatTimeDisplay(notificationTime)}
-            </IonText>
-          </IonItem>
-
-          {notificationsEnabled && pendingCount > 0 && (
-            <IonItem lines="none">
-              <IonNote slot="start" style={{ opacity: 0 }}></IonNote>
-              <IonNote color="success">
-                Next notification scheduled
-                <IonBadge color="success" className="notification-badge">
-                  {pendingCount}
-                </IonBadge>
-              </IonNote>
+        <IonList className="settings-list">
+          <div className="settings-section">
+            <div className="section-header">
+              {t('settings.notifications.title')}
+            </div>
+            
+            <IonItem className="settings-item" lines="none">
+              <IonIcon icon={notifications} slot="start" color="primary"></IonIcon>
+              <IonLabel>
+                <h2 className="settings-item-header">{t('settings.notifications.dailyReminder')}</h2>
+                <p className="settings-item-subtext">{t('settings.notifications.reminderDescription')}</p>
+              </IonLabel>
+              {isLoading ? (
+                <IonSpinner name="dots" slot="end" />
+              ) : (
+                <IonToggle
+                  checked={notificationsEnabled}
+                  onIonChange={(e) => handleToggleNotifications(e.detail.checked)}
+                  slot="end"
+                />
+              )}
             </IonItem>
-          )}
 
-          <IonItemDivider color="light">
-            <IonLabel>Data Management</IonLabel>
-          </IonItemDivider>
+            <IonItem className="settings-item" button detail lines="none" onClick={() => setShowTimePicker(true)}>
+              <IonIcon icon={time} slot="start" color="primary"></IonIcon>
+              <IonLabel>
+                <h2 className="settings-item-header">{t('settings.notifications.notificationTime')}</h2>
+                <p className="settings-item-subtext">{t('settings.notifications.timeDescription')}</p>
+              </IonLabel>
+              <IonText slot="end" color="medium">
+                {formatTimeDisplay(notificationTime)}
+              </IonText>
+            </IonItem>
 
-          <IonItem button onClick={() => setShowClearDataAlert(true)}>
-            <IonIcon icon={trash} slot="start" color="danger"></IonIcon>
-            <IonLabel color="danger">Clear All Data</IonLabel>
-          </IonItem>
+            {notificationsEnabled && pendingCount > 0 && (
+              <div className="notification-status">
+                <IonIcon icon={checkmarkCircle} color="success"></IonIcon>
+                {t('settings.notifications.nextScheduled')} {formatTimeDisplay(notificationTime)}
+              </div>
+            )}
+          </div>
 
-          <IonItemDivider color="light">
-            <IonLabel>About</IonLabel>
-          </IonItemDivider>
+          <div className="settings-section">
+            <div className="section-header">
+              {t('settings.language.title')}
+            </div>
+            
+            <IonItem className="settings-item" lines="none">
+              <IonIcon icon={language} slot="start" color="primary"></IonIcon>
+              <IonLabel>
+                <h2 className="settings-item-header">{t('settings.language.select')}</h2>
+              </IonLabel>
+              {isLoading ? (
+                <IonSpinner name="dots" slot="end" />
+              ) : (
+                <IonSelect 
+                  value={currentLanguage}
+                  onIonChange={(e) => handleLanguageChange(e.detail.value)}
+                  interface="popover"
+                  slot="end"
+                >
+                  <IonSelectOption value="fr">{t('settings.language.fr')}</IonSelectOption>
+                  <IonSelectOption value="en">{t('settings.language.en')}</IonSelectOption>
+                </IonSelect>
+              )}
+            </IonItem>
+          </div>
 
-          <IonCard className="about-card">
-            <IonCardContent>
+          <div className="settings-section">
+            <div className="section-header">
+              {t('settings.dataManagement.title')}
+            </div>
+            
+            <IonItem className="settings-item danger-item" button lines="none" onClick={() => setShowClearDataAlert(true)}>
+              <IonIcon icon={trash} slot="start" color="danger"></IonIcon>
+              <IonLabel>
+                <h2 className="settings-item-header">{t('settings.dataManagement.clearData')}</h2>
+                <p className="settings-item-subtext">{t('settings.dataManagement.clearDescription')}</p>
+              </IonLabel>
+            </IonItem>
+          </div>
+
+          <div className="settings-section">
+            <div className="section-header">
+              {t('settings.about.title')}
+            </div>
+            
+            <IonCard className="about-card">
+              <img src={logoImage} alt="Logo" className="app-logo" />
               <h2>BeUnreal</h2>
-              <p>Version 1.0.0</p>
-              <p>A BeReal-inspired photo application built with Ionic React and Capacitor.</p>
-              <p className="copyright">© 2025 Snapshoot</p>
-            </IonCardContent>
-          </IonCard>
+              <p>{t('settings.about.version')} 1.0.0</p>
+              <p>{t('settings.about.description')}</p>
+              <p className="copyright">{t('settings.about.copyright')}</p>
+            </IonCard>
+          </div>
         </IonList>
 
         {/* Time picker modal */}
-        <IonModal isOpen={showTimePicker} onDidDismiss={() => setShowTimePicker(false)}>
+        <IonModal isOpen={showTimePicker} onDidDismiss={() => setShowTimePicker(false)} className="time-picker-modal">
           <IonHeader>
             <IonToolbar color="primary">
               <IonButton slot="start" fill="clear" color="light" onClick={() => setShowTimePicker(false)}>
                 <IonIcon icon={arrowBack} slot="icon-only"></IonIcon>
               </IonButton>
-              <IonTitle>Select Time</IonTitle>
+              <IonTitle>{t('settings.time.title')}</IonTitle>
               <IonButton slot="end" fill="clear" color="light" onClick={handleSaveTime}>
-                Save
+                {t('settings.time.save')}
               </IonButton>
             </IonToolbar>
           </IonHeader>
@@ -269,15 +358,15 @@ const Settings: React.FC = () => {
         <IonAlert
           isOpen={showClearDataAlert}
           onDidDismiss={() => setShowClearDataAlert(false)}
-          header="Clear All Data"
-          message="This will delete all photos and reset all settings. This action cannot be undone."
+          header={t('settings.alerts.clearDataTitle')}
+          message={t('settings.alerts.clearDataMessage')}
           buttons={[
             {
-              text: "Cancel",
+              text: t('settings.alerts.cancel'),
               role: "cancel",
             },
             {
-              text: "Clear All",
+              text: t('settings.alerts.clearAll'),
               role: "destructive",
               handler: handleClearAllData,
             },
@@ -288,9 +377,9 @@ const Settings: React.FC = () => {
         <IonAlert
           isOpen={showSuccessAlert}
           onDidDismiss={() => setShowSuccessAlert(false)}
-          header="Success"
+          header={t('settings.alerts.success')}
           message={alertMessage}
-          buttons={["OK"]}
+          buttons={[t('settings.alerts.ok')]}
         />
       </IonContent>
     </IonPage>
