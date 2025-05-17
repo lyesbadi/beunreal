@@ -652,11 +652,11 @@ const likeOfflineStory = async (storyId: string): Promise<boolean> => {
 
     // Ajouter le like s'il n'existe pas déjà
     const story = stories[storyIndex];
-    const likes = story.views || [];
+    const views = story.views || [];
 
-    if (!likes.includes(currentUser.id)) {
-      likes.push(currentUser.id);
-      story.views = likes;
+    if (!views.includes(currentUser.id)) {
+      views.push(currentUser.id);
+      story.views = views;
 
       // Mettre à jour la story dans le stockage
       stories[storyIndex] = story;
@@ -754,7 +754,7 @@ const unlikeOfflineStory = async (storyId: string): Promise<boolean> => {
 };
 
 /**
- * Ecoute les changements de connectivité pour synchroniser les données
+ * Écoute les changements de connectivité pour synchroniser les données
  */
 export const setupConnectivityListener = (): void => {
   window.addEventListener("online", async () => {
@@ -762,3 +762,6 @@ export const setupConnectivityListener = (): void => {
     await syncPendingStories();
   });
 };
+
+// Initialiser les écouteurs de connectivité
+setupConnectivityListener();

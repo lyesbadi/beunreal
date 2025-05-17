@@ -11,10 +11,11 @@ import {
   IonSpinner,
   IonLoading,
   IonModal,
+  IonToast,
 } from "@ionic/react";
 import { IonReactRouter } from "@ionic/react-router";
 import { Route, Redirect } from "react-router";
-import { camera, image, settings, chatbubble, search, people } from "ionicons/icons";
+import { camera, image, search, chatbubble, people } from "ionicons/icons";
 import { isAuthenticated } from "./services/auth.service";
 import { AuthProvider } from "./contexts/AuthContext";
 import CameraView from "./components/CameraView";
@@ -22,7 +23,8 @@ import PostComposer from "./components/PostComposer";
 import { takePicture } from "./services/camera.service";
 import { createPost } from "./services/post.service";
 import { CameraResultType, CameraSource } from "@capacitor/camera";
-import { initLanguage } from "./services/i18n.service";
+import { appInitService } from "./services/app-init.service";
+import { logger } from "./services/logger.service";
 
 /* Core CSS required for Ionic components to work properly */
 import "@ionic/react/css/core.css";
@@ -104,19 +106,54 @@ const App: React.FC = () => {
   const [showCameraModal, setShowCameraModal] = useState<boolean>(false);
   const [showComposer, setShowComposer] = useState<boolean>(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState<boolean>(true);
+  const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
+  const [showOfflineToast, setShowOfflineToast] = useState<boolean>(false);
+  const [offlineToastMessage, setOfflineToastMessage] = useState<string>("");
 
-  // Initialize language settings when app starts
+  // Initialize app when component mounts
   useEffect(() => {
-    const initApp = async () => {
+    const initializeApp = async () => {
       try {
-        // Initialize language from saved preferences
-        await initLanguage();
+        logger.info("Initializing application");
+        setIsInitializing(true);
+        await appInitService.initialize();
       } catch (error) {
-        console.error("Error initializing app:", error);
+        logger.error("Error initializing app", error);
+      } finally {
+        setIsInitializing(false);
       }
     };
 
-    initApp();
+    initializeApp();
+  }, []);
+
+  // Setup online/offline status listeners
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      setOfflineToastMessage("You are back online");
+      setShowOfflineToast(true);
+      logger.info("App is online");
+    };
+
+    const handleOffline = () => {
+      setIsOffline(true);
+      setOfflineToastMessage("You are offline. Some features may be limited.");
+      setShowOfflineToast(true);
+      logger.warn("App is offline");
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    // Check initial status
+    setIsOffline(!navigator.onLine);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
   }, []);
 
   const handlePhotoTaken = (webPath: string) => {
@@ -141,6 +178,22 @@ const App: React.FC = () => {
       console.error("Error publishing post:", error);
     }
   };
+
+  // Show loading screen while app is initializing
+  if (isInitializing) {
+    return (
+      <IonApp>
+        <div className="app-loading-container">
+          <div className="app-loading-content">
+            <img src="assets/logo.png" alt="BeUnreal Logo" className="app-logo" />
+            <h1>BeUnreal</h1>
+            <IonSpinner name="crescent" />
+            <p>Loading your experience...</p>
+          </div>
+        </div>
+      </IonApp>
+    );
+  }
 
   return (
     <AuthProvider>
@@ -175,10 +228,11 @@ const App: React.FC = () => {
                   <IonIcon aria-hidden="true" icon={search} />
                   <IonLabel>Search</IonLabel>
                 </IonTabButton>
-                <IonTabButton 
-                  tab="capture" 
-                  onClick={() => setShowCameraModal(true)} 
+                <IonTabButton
+                  tab="capture"
+                  onClick={() => setShowCameraModal(true)}
                   className="capture-tab"
+                  disabled={isOffline}
                 >
                   <div className="capture-button-wrapper">
                     <IonIcon aria-hidden="true" icon={camera} className="capture-icon" />
@@ -224,6 +278,22 @@ const App: React.FC = () => {
             <Redirect to="/app/home" />
           </Route>
         </IonReactRouter>
+
+        {/* Offline Toast */}
+        <IonToast
+          isOpen={showOfflineToast}
+          onDidDismiss={() => setShowOfflineToast(false)}
+          message={offlineToastMessage}
+          position="top"
+          duration={3000}
+          color={isOffline ? "warning" : "success"}
+          buttons={[
+            {
+              text: "OK",
+              role: "cancel",
+            },
+          ]}
+        />
       </IonApp>
     </AuthProvider>
   );

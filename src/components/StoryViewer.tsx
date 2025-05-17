@@ -84,8 +84,9 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
   useEffect(() => {
     // Initialize likes
     const initialLikes: Record<string, boolean> = {};
-    stories.forEach(story => {
-      initialLikes[story.id] = story.likes && user ? story.likes.includes(user.id) : false;
+    stories.forEach((story) => {
+      // Vérifier si la propriété views existe et contient l'ID de l'utilisateur
+      initialLikes[story.id] = story.views && user ? story.views.includes(user.id) : false;
     });
     setLikes(initialLikes);
 
@@ -203,7 +204,7 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
 
     try {
       setIsPaused(true);
-      
+
       // Toggle like status in state for immediate feedback
       const isLiked = likes[currentStory.id];
       const newLikes = { ...likes };
@@ -217,14 +218,14 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
         await likeStory(currentStory.id);
         setToastMessage(reaction ? `Réaction "${reaction.label}" envoyée!` : "Story likée!");
       }
-      
+
       setShowToast(true);
       setShowReactions(false);
     } catch (error) {
       console.error("Error liking/unliking story:", error);
       setToastMessage("Une erreur est survenue");
       setShowToast(true);
-      
+
       // Revert on error
       const newLikes = { ...likes };
       newLikes[currentStory.id] = !newLikes[currentStory.id];
@@ -264,6 +265,11 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
   if (!currentStory) {
     return null;
   }
+
+  // Calculer le nombre de vues total pour l'affichage dans le badge
+  const viewsCount = currentStory.views?.length || 0;
+  // Ajouter 1 si l'utilisateur actuel a aimé cette story (pour l'interface utilisateur)
+  const displayViewsCount = viewsCount + (likes[currentStory.id] ? 1 : 0);
 
   return (
     <>
@@ -350,20 +356,16 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
               <IonSpinner name="crescent" color="light" />
             </div>
           )}
-          <img src={currentStory.photoData.webPath} alt="Story" className="story-image" onLoad={handleImageLoad} />
+          {/* Vérifier si photoData existe avant d'accéder à webPath */}
+          {currentStory.photoData && (
+            <img src={currentStory.photoData.webPath} alt="Story" className="story-image" onLoad={handleImageLoad} />
+          )}
         </div>
 
         {showReactions && (
-          <div 
-            className="reactions-container"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="reactions-container" onClick={(e) => e.stopPropagation()}>
             {REACTIONS.map((reaction, index) => (
-              <div 
-                key={index} 
-                className="reaction-button"
-                onClick={() => handleLikeStory(reaction)}
-              >
+              <div key={index} className="reaction-button" onClick={() => handleLikeStory(reaction)}>
                 <IonIcon icon={reaction.icon} color={reaction.color} />
                 <span>{reaction.label}</span>
               </div>
@@ -373,8 +375,8 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
 
         <IonFooter className="story-footer">
           <div className="story-actions">
-            <IonButton 
-              fill="clear" 
+            <IonButton
+              fill="clear"
               color={likes[currentStory.id] ? "danger" : "light"}
               onClick={(e) => {
                 e.stopPropagation();
@@ -387,10 +389,10 @@ const StoryViewer: React.FC<StoryViewerProps> = ({ stories, initialIndex = 0, on
               <IonIcon slot="icon-only" icon={likes[currentStory.id] ? heart : heartOutline} />
             </IonButton>
             <IonBadge color="light" className="story-stat">
-              {(currentStory.likes?.length || 0) + (likes[currentStory.id] ? 1 : 0)}
+              {displayViewsCount}
             </IonBadge>
           </div>
-          
+
           <div className="message-container">
             <IonItem lines="none" className="message-input-item">
               <IonInput
