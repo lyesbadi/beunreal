@@ -4,9 +4,7 @@ import { add } from "ionicons/icons";
 import { StoryWithUser, getFeedStories, getNearbyStories } from "../services/story.service";
 import { useAuthContext } from "../contexts/AuthContext";
 import StoryViewer from "./StoryViewer";
-import { CameraSource } from "@capacitor/camera";
-import { takePicture, createPhotoWithLocation } from "../services/camera.service";
-import { createStory } from "../services/story.service";
+import StoryCreator from "./StoryCreator";
 import "./StoryCircles.css";
 
 interface StoryCirclesProps {
@@ -38,6 +36,7 @@ const StoryCircles: React.FC<StoryCirclesProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedStoryIndex, setSelectedStoryIndex] = useState<number | null>(null);
   const [showStoryViewer, setShowStoryViewer] = useState<boolean>(false);
+  const [showStoryCreator, setShowStoryCreator] = useState<boolean>(false);
   const [isCreatingStory, setIsCreatingStory] = useState<boolean>(false);
 
   useEffect(() => {
@@ -126,40 +125,20 @@ const StoryCircles: React.FC<StoryCirclesProps> = ({
     setStories((prevStories) => prevStories.filter((story) => story.id !== storyId));
   };
 
-  const handleCreateStory = async () => {
+  const handleCreateStory = () => {
     if (onCreateStory) {
       onCreateStory();
       return;
     }
 
-    try {
-      setIsCreatingStory(true);
+    setIsCreatingStory(true);
+    setShowStoryCreator(true);
+  };
 
-      // Take a photo using the device camera
-      const photo = await takePicture({
-        quality: 90,
-        source: CameraSource.Camera,
-        width: 1200,
-        height: 1600,
-        allowEditing: false,
-        presentationStyle: "fullscreen",
-      });
-
-      if (photo && photo.webPath) {
-        // Create photo data with location
-        const photoData = await createPhotoWithLocation(photo, true, "story");
-
-        // Create story
-        await createStory(photoData);
-
-        // Reload stories
-        loadStories();
-      }
-    } catch (error) {
-      console.error("Error creating story:", error);
-    } finally {
-      setIsCreatingStory(false);
-    }
+  const handleStoryCreated = () => {
+    setShowStoryCreator(false);
+    setIsCreatingStory(false);
+    loadStories(); // Reload stories after creation
   };
 
   const formatTime = (timestamp: number) => {
@@ -205,7 +184,12 @@ const StoryCircles: React.FC<StoryCirclesProps> = ({
                 className={`circle-avatar create-button ${isCreatingStory ? "loading" : ""}`}
                 onClick={isCreatingStory ? undefined : handleCreateStory}
               >
-                {isCreatingStory ? <IonSpinner name="crescent" /> : <IonIcon icon={add} />}
+                {isCreatingStory ? 
+                  <IonSpinner name="crescent" /> : 
+                  <div className="create-button-icon">
+                    <IonIcon icon={add} />
+                  </div>
+                }
               </div>
               <div className="username">Your story</div>
             </div>
@@ -236,6 +220,7 @@ const StoryCircles: React.FC<StoryCirclesProps> = ({
         </div>
       )}
 
+      {/* Story Viewer Modal */}
       <IonModal
         isOpen={showStoryViewer}
         onDidDismiss={handleStoryClose}
@@ -250,6 +235,25 @@ const StoryCircles: React.FC<StoryCirclesProps> = ({
             onDelete={handleStoryDelete}
           />
         )}
+      </IonModal>
+
+      {/* Story Creator Modal */}
+      <IonModal
+        isOpen={showStoryCreator}
+        onDidDismiss={() => {
+          setShowStoryCreator(false);
+          setIsCreatingStory(false);
+        }}
+        backdropDismiss={false}
+        className="story-creator-modal"
+      >
+        <StoryCreator 
+          onClose={() => {
+            setShowStoryCreator(false);
+            setIsCreatingStory(false);
+          }}
+          onSuccess={handleStoryCreated}
+        />
       </IonModal>
     </div>
   );

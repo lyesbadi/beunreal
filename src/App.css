@@ -121,6 +121,12 @@
   font-size: 24px;
 }
 
+/* Disabled state for capture button */
+.capture-tab[aria-disabled="true"] .capture-button-wrapper {
+  opacity: 0.5;
+  background: #888;
+}
+
 /* General Style Overrides */
 ion-content {
   --background: var(--beunreal-background);
@@ -253,4 +259,81 @@ p {
 .empty-state-message {
   color: var(--beunreal-text-secondary);
   margin-bottom: 24px;
+}
+
+/* App Loading Screen */
+.app-loading-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--beunreal-background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.app-loading-content {
+  text-align: center;
+  max-width: 300px;
+  padding: 20px;
+}
+
+.app-loading-content .app-logo {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  border-radius: 20px;
+}
+
+.app-loading-content h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--beunreal-text);
+}
+
+.app-loading-content ion-spinner {
+  margin-bottom: 16px;
+}
+
+.app-loading-content p {
+  color: var(--beunreal-text-secondary);
+  font-size: 16px;
+}
+
+/* Offline Banner */
+.offline-banner {
+  background-color: var(--beunreal-warning);
+  color: var(--ion-color-warning-contrast);
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Story Creator Button */
+.create-button-icon {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(45deg, #000000, #262626);
+  border-radius: 50%;
+  color: white;
+}
+
+.create-button-icon ion-icon {
+  font-size: 24px;
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion) {
+  * {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
 }

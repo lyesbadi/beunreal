@@ -1,4 +1,5 @@
 import { Preferences } from "@capacitor/preferences";
+import { API_URL } from "../config";
 
 // Keys for auth storage
 const AUTH_TOKEN_KEY = "auth_token";
@@ -17,6 +18,26 @@ export interface User {
 }
 
 /**
+ * Récupère le token d'authentification
+ */
+export const getAuthToken = async (): Promise<string | null> => {
+  try {
+    const result = await Preferences.get({ key: AUTH_TOKEN_KEY });
+    return result.value || null;
+  } catch (error) {
+    console.error("Error getting auth token:", error);
+    return null;
+  }
+};
+
+/**
+ * Vérifie si l'appareil est actuellement en ligne
+ */
+const isOnline = (): boolean => {
+  return navigator.onLine;
+};
+
+/**
  * Register a new user
  * @param email User email
  * @param username User username
@@ -25,42 +46,51 @@ export interface User {
  */
 export const register = async (email: string, username: string, password: string): Promise<User> => {
   try {
-    // This is a mock implementation since we don't have a backend yet
-    // In a real app, this would call an API endpoint
+    if (isOnline()) {
+      // Online mode: Use the API
+      const response = await fetch(`${API_URL}/api/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          username,
+        }),
+      });
 
-    // Check if user already exists
-    const existingUsers = await getUsers();
-    const userExists = existingUsers.some((user) => user.email === email || user.username === username);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Registration failed");
+      }
 
-    if (userExists) {
-      throw new Error("User already exists");
+      const data = await response.json();
+
+      // Save token
+      await saveAuthToken(data.token);
+
+      // Convert API user format to local format
+      const user: User = {
+        id: data.user._id || data.user.id,
+        email: data.user.email,
+        username: data.user.username,
+        profilePicture: data.user.avatar,
+        bio: data.user.bio,
+        fullName: data.user.display_name,
+        following: [],
+        followers: [],
+        createdAt: new Date(data.user.created_at).getTime(),
+      };
+
+      // Save user data
+      await saveCurrentUser(user);
+
+      return user;
+    } else {
+      // Offline mode: Cannot register without internet
+      throw new Error("Cannot register while offline");
     }
-
-    // Create new user
-    const timestamp = new Date().getTime();
-    const newUser: User = {
-      id: `user_${timestamp}`,
-      email,
-      username,
-      profilePicture: undefined,
-      fullName: undefined,
-      bio: undefined,
-      following: [],
-      followers: [],
-      createdAt: timestamp,
-    };
-
-    // Save user to "database"
-    await saveUser(newUser);
-
-    // Generate token (in a real app, this would be from the server)
-    const token = `token_${timestamp}`;
-    await saveAuthToken(token);
-
-    // Save current user
-    await saveCurrentUser(newUser);
-
-    return newUser;
   } catch (error) {
     console.error("Error registering user:", error);
     throw error;
@@ -75,30 +105,90 @@ export const register = async (email: string, username: string, password: string
  */
 export const login = async (emailOrUsername: string, password: string): Promise<User> => {
   try {
-    // This is a mock implementation since we don't have a backend yet
-    // In a real app, this would call an API endpoint
+    if (isOnline()) {
+      // Online mode: Use the API
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: emailOrUsername.includes("@") ? emailOrUsername : undefined,
+          username: !emailOrUsername.includes("@") ? emailOrUsername : undefined,
+          password,
+        }),
+      });
 
-    // Find user
-    const users = await getUsers();
-    const user = users.find((user) => user.email === emailOrUsername || user.username === emailOrUsername);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Login failed");
+      }
 
-    if (!user) {
-      throw new Error("User not found");
+      const data = await response.json();
+
+      // Save token
+      await saveAuthToken(data.token);
+
+      // Get user profile with token
+      const user = await getUserProfile(data.token);
+
+      // Save user data
+      await saveCurrentUser(user);
+
+      return user;
+    } else {
+      // Try to use cached credentials for offline login
+      // This is a simplified offline login that just checks if the user exists locally
+      const result = await Preferences.get({ key: USER_DATA_KEY });
+      if (!result.value) {
+        throw new Error("Cannot login while offline");
+      }
+
+      const user: User = JSON.parse(result.value);
+
+      // Simplified check - in a real app, you would hash and compare passwords
+      if (user.email === emailOrUsername || user.username === emailOrUsername) {
+        return user;
+      }
+
+      throw new Error("Invalid credentials");
     }
-
-    // In a real app, we would check the password here
-    // For now, we just simulate a successful login
-
-    // Generate token (in a real app, this would be from the server)
-    const token = `token_${new Date().getTime()}`;
-    await saveAuthToken(token);
-
-    // Save current user
-    await saveCurrentUser(user);
-
-    return user;
   } catch (error) {
     console.error("Error logging in:", error);
+    throw error;
+  }
+};
+
+/**
+ * Get user profile from API
+ */
+const getUserProfile = async (token: string): Promise<User> => {
+  try {
+    const response = await fetch(`${API_URL}/api/users/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to get user profile");
+    }
+
+    const data = await response.json();
+
+    return {
+      id: data._id || data.id,
+      email: data.email,
+      username: data.username,
+      profilePicture: data.avatar,
+      bio: data.bio,
+      fullName: data.display_name,
+      following: data.following || [],
+      followers: data.followers || [],
+      createdAt: new Date(data.created_at).getTime(),
+    };
+  } catch (error) {
+    console.error("Error getting user profile:", error);
     throw error;
   }
 };
@@ -163,22 +253,118 @@ export const updateUserProfile = async (userData: Partial<User>): Promise<User> 
       throw new Error("Not authenticated");
     }
 
-    // Update user data
-    const updatedUser: User = {
-      ...currentUser,
-      ...userData,
-    };
+    if (isOnline()) {
+      const token = await getAuthToken();
 
-    // Update user in "database"
-    await updateUser(updatedUser);
+      // Map our internal fields to API fields
+      const apiUserData: Record<string, any> = {};
 
-    // Update current user
-    await saveCurrentUser(updatedUser);
+      if (userData.username !== undefined) apiUserData.username = userData.username;
+      if (userData.fullName !== undefined) apiUserData.display_name = userData.fullName;
+      if (userData.bio !== undefined) apiUserData.bio = userData.bio;
+      if (userData.profilePicture !== undefined) {
+        // For profile pictures, we'd need to upload the image first
+        // This is a simplified version that assumes the profilePicture is already a URL
+        apiUserData.avatar = userData.profilePicture;
+      }
 
-    return updatedUser;
+      const response = await fetch(`${API_URL}/api/users/me`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(apiUserData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Profile update failed");
+      }
+
+      const data = await response.json();
+
+      // Convert API response to our format
+      const updatedUser: User = {
+        ...currentUser,
+        id: data._id || data.id,
+        username: data.username,
+        email: data.email,
+        profilePicture: data.avatar,
+        bio: data.bio,
+        fullName: data.display_name,
+        following: data.following || currentUser.following,
+        followers: data.followers || currentUser.followers,
+        createdAt: new Date(data.created_at).getTime(),
+      };
+
+      // Update local user data
+      await saveCurrentUser(updatedUser);
+
+      return updatedUser;
+    } else {
+      // Offline mode: Update only locally
+      const updatedUser: User = {
+        ...currentUser,
+        ...userData,
+      };
+
+      // Save locally
+      await saveCurrentUser(updatedUser);
+
+      // Mark for sync when online
+      await markUserForSync(updatedUser);
+
+      return updatedUser;
+    }
   } catch (error) {
     console.error("Error updating user profile:", error);
     throw error;
+  }
+};
+
+/**
+ * Mark user data for sync when online
+ */
+const markUserForSync = async (user: User): Promise<void> => {
+  try {
+    const PENDING_USER_UPDATES_KEY = "pending_user_updates";
+
+    await Preferences.set({
+      key: PENDING_USER_UPDATES_KEY,
+      value: JSON.stringify(user),
+    });
+  } catch (error) {
+    console.error("Error marking user for sync:", error);
+  }
+};
+
+/**
+ * Sync user updates with the server when online
+ */
+export const syncPendingUserUpdates = async (): Promise<void> => {
+  if (!isOnline()) return;
+
+  try {
+    const PENDING_USER_UPDATES_KEY = "pending_user_updates";
+
+    const result = await Preferences.get({ key: PENDING_USER_UPDATES_KEY });
+    if (!result.value) return;
+
+    const pendingUser: User = JSON.parse(result.value);
+
+    // Update user via API
+    await updateUserProfile({
+      username: pendingUser.username,
+      fullName: pendingUser.fullName,
+      bio: pendingUser.bio,
+      profilePicture: pendingUser.profilePicture,
+    });
+
+    // Clear pending updates
+    await Preferences.remove({ key: PENDING_USER_UPDATES_KEY });
+  } catch (error) {
+    console.error("Error syncing user updates:", error);
   }
 };
 
@@ -196,45 +382,82 @@ export const followUser = async (userId: string): Promise<User> => {
       throw new Error("Not authenticated");
     }
 
-    // Check if already following
-    if (currentUser.following?.includes(userId)) {
-      return currentUser;
-    }
+    if (isOnline()) {
+      const token = await getAuthToken();
 
-    // Update following list
-    const following = currentUser.following || [];
-    following.push(userId);
+      const response = await fetch(`${API_URL}/api/friends/request/${userId}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    // Update user
-    const updatedUser = {
-      ...currentUser,
-      following,
-    };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to follow user");
+      }
 
-    // Update user in "database"
-    await updateUser(updatedUser);
+      // Optimistically update following list
+      const following = currentUser.following || [];
+      if (!following.includes(userId)) {
+        following.push(userId);
+      }
 
-    // Update current user
-    await saveCurrentUser(updatedUser);
-
-    // Update the followed user's followers list
-    const followedUser = await getUserById(userId);
-    if (followedUser) {
-      const followers = followedUser.followers || [];
-      followers.push(currentUser.id);
-
-      const updatedFollowedUser = {
-        ...followedUser,
-        followers,
+      const updatedUser: User = {
+        ...currentUser,
+        following,
       };
 
-      await updateUser(updatedFollowedUser);
-    }
+      // Save locally
+      await saveCurrentUser(updatedUser);
 
-    return updatedUser;
+      return updatedUser;
+    } else {
+      // Offline mode: Update only locally
+      const following = currentUser.following || [];
+      if (!following.includes(userId)) {
+        following.push(userId);
+      }
+
+      const updatedUser: User = {
+        ...currentUser,
+        following,
+      };
+
+      // Save locally
+      await saveCurrentUser(updatedUser);
+
+      // Mark for sync
+      await addPendingFollow(userId);
+
+      return updatedUser;
+    }
   } catch (error) {
     console.error("Error following user:", error);
     throw error;
+  }
+};
+
+/**
+ * Add a pending follow request
+ */
+const addPendingFollow = async (userId: string): Promise<void> => {
+  try {
+    const PENDING_FOLLOWS_KEY = "pending_follows";
+
+    const result = await Preferences.get({ key: PENDING_FOLLOWS_KEY });
+    const pendingFollows = result.value ? JSON.parse(result.value) : [];
+
+    if (!pendingFollows.includes(userId)) {
+      pendingFollows.push(userId);
+
+      await Preferences.set({
+        key: PENDING_FOLLOWS_KEY,
+        value: JSON.stringify(pendingFollows),
+      });
+    }
+  } catch (error) {
+    console.error("Error adding pending follow:", error);
   }
 };
 
@@ -252,43 +475,76 @@ export const unfollowUser = async (userId: string): Promise<User> => {
       throw new Error("Not authenticated");
     }
 
-    // Check if not following
-    if (!currentUser.following?.includes(userId)) {
-      return currentUser;
-    }
+    if (isOnline()) {
+      const token = await getAuthToken();
 
-    // Update following list
-    const following = currentUser.following.filter((id) => id !== userId);
+      const response = await fetch(`${API_URL}/api/friends/${userId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    // Update user
-    const updatedUser = {
-      ...currentUser,
-      following,
-    };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to unfollow user");
+      }
 
-    // Update user in "database"
-    await updateUser(updatedUser);
+      // Update following list
+      const following = currentUser.following?.filter((id) => id !== userId) || [];
 
-    // Update current user
-    await saveCurrentUser(updatedUser);
-
-    // Update the unfollowed user's followers list
-    const unfollowedUser = await getUserById(userId);
-    if (unfollowedUser) {
-      const followers = unfollowedUser.followers?.filter((id) => id !== currentUser.id) || [];
-
-      const updatedUnfollowedUser = {
-        ...unfollowedUser,
-        followers,
+      const updatedUser: User = {
+        ...currentUser,
+        following,
       };
 
-      await updateUser(updatedUnfollowedUser);
-    }
+      // Save locally
+      await saveCurrentUser(updatedUser);
 
-    return updatedUser;
+      return updatedUser;
+    } else {
+      // Offline mode: Update only locally
+      const following = currentUser.following?.filter((id) => id !== userId) || [];
+
+      const updatedUser: User = {
+        ...currentUser,
+        following,
+      };
+
+      // Save locally
+      await saveCurrentUser(updatedUser);
+
+      // Mark for sync
+      await addPendingUnfollow(userId);
+
+      return updatedUser;
+    }
   } catch (error) {
     console.error("Error unfollowing user:", error);
     throw error;
+  }
+};
+
+/**
+ * Add a pending unfollow request
+ */
+const addPendingUnfollow = async (userId: string): Promise<void> => {
+  try {
+    const PENDING_UNFOLLOWS_KEY = "pending_unfollows";
+
+    const result = await Preferences.get({ key: PENDING_UNFOLLOWS_KEY });
+    const pendingUnfollows = result.value ? JSON.parse(result.value) : [];
+
+    if (!pendingUnfollows.includes(userId)) {
+      pendingUnfollows.push(userId);
+
+      await Preferences.set({
+        key: PENDING_UNFOLLOWS_KEY,
+        value: JSON.stringify(pendingUnfollows),
+      });
+    }
+  } catch (error) {
+    console.error("Error adding pending unfollow:", error);
   }
 };
 
@@ -303,22 +559,148 @@ export const searchUsers = async (query: string): Promise<User[]> => {
       return [];
     }
 
-    // Get all users
-    const users = await getUsers();
+    if (isOnline()) {
+      const token = await getAuthToken();
 
-    // Filter users based on query
-    return users.filter(
-      (user) =>
-        user.username.toLowerCase().includes(query.toLowerCase()) ||
-        (user.fullName && user.fullName.toLowerCase().includes(query.toLowerCase()))
-    );
+      const response = await fetch(`${API_URL}/api/friends/find?q=${encodeURIComponent(query)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to search users");
+      }
+
+      const data = await response.json();
+
+      // Convert API response to our format
+      return data.map((user: any) => ({
+        id: user._id || user.id,
+        username: user.username,
+        email: user.email,
+        profilePicture: user.avatar,
+        bio: user.bio,
+        fullName: user.display_name,
+        following: user.following || [],
+        followers: user.followers || [],
+        createdAt: new Date(user.created_at).getTime(),
+      }));
+    } else {
+      // Offline mode: Can't search users without internet
+      throw new Error("Cannot search users while offline");
+    }
   } catch (error) {
     console.error("Error searching users:", error);
     return [];
   }
 };
 
-// ---- Helper functions for mock database ----
+/**
+ * Get a user by ID
+ * @param userId User ID
+ * @returns Promise with the user data
+ */
+export const getUserById = async (userId: string): Promise<User | null> => {
+  try {
+    if (isOnline()) {
+      const token = await getAuthToken();
+
+      const response = await fetch(`${API_URL}/api/users/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("User not found");
+      }
+
+      const data = await response.json();
+
+      // Convert API response to our format
+      return {
+        id: data._id || data.id,
+        username: data.username,
+        email: data.email,
+        profilePicture: data.avatar,
+        bio: data.bio,
+        fullName: data.display_name,
+        following: data.following || [],
+        followers: data.followers || [],
+        createdAt: new Date(data.created_at).getTime(),
+      };
+    } else {
+      // Check local cache
+      if (userId === "me") {
+        return await getCurrentUser();
+      }
+
+      // Try to find in followed users cache
+      const FOLLOWED_USERS_CACHE_KEY = "followed_users_cache";
+      const result = await Preferences.get({ key: FOLLOWED_USERS_CACHE_KEY });
+
+      if (result.value) {
+        const cachedUsers: Record<string, User> = JSON.parse(result.value);
+
+        if (cachedUsers[userId]) {
+          return cachedUsers[userId];
+        }
+      }
+
+      return null;
+    }
+  } catch (error) {
+    console.error(`Error getting user by ID ${userId}:`, error);
+    return null;
+  }
+};
+
+/**
+ * Get multiple users by IDs
+ * @param userIds Array of user IDs
+ * @returns Array of users
+ */
+export const getUsersByIds = async (userIds: string[]): Promise<User[]> => {
+  if (!userIds || userIds.length === 0) {
+    return [];
+  }
+
+  if (isOnline()) {
+    try {
+      const token = await getAuthToken();
+
+      // We can't batch get users with the current API, so we have to make multiple requests
+      const userPromises = userIds.map((id) => getUserById(id));
+      const users = await Promise.all(userPromises);
+
+      // Filter out null values
+      return users.filter((user): user is User => user !== null);
+    } catch (error) {
+      console.error("Error getting users by IDs:", error);
+      return [];
+    }
+  } else {
+    // Try to find users in cache
+    const FOLLOWED_USERS_CACHE_KEY = "followed_users_cache";
+    const result = await Preferences.get({ key: FOLLOWED_USERS_CACHE_KEY });
+
+    if (!result.value) {
+      return [];
+    }
+
+    const cachedUsers: Record<string, User> = JSON.parse(result.value);
+    const users: User[] = [];
+
+    for (const userId of userIds) {
+      if (cachedUsers[userId]) {
+        users.push(cachedUsers[userId]);
+      }
+    }
+
+    return users;
+  }
+};
 
 /**
  * Save auth token to storage
@@ -343,87 +725,64 @@ const saveCurrentUser = async (user: User): Promise<void> => {
 };
 
 /**
- * Get all users from "database"
- * @returns Array of users
+ * Sync pending social actions (follows/unfollows) with the server
  */
-const getUsers = async (): Promise<User[]> => {
-  const result = await Preferences.get({ key: "users" });
+export const syncPendingSocialActions = async (): Promise<void> => {
+  if (!isOnline()) return;
 
-  if (!result.value) {
-    return [];
+  try {
+    // Sync follows
+    const PENDING_FOLLOWS_KEY = "pending_follows";
+    const followsResult = await Preferences.get({ key: PENDING_FOLLOWS_KEY });
+
+    if (followsResult.value) {
+      const pendingFollows: string[] = JSON.parse(followsResult.value);
+
+      for (const userId of pendingFollows) {
+        try {
+          await followUser(userId);
+        } catch (error) {
+          console.error(`Error syncing follow for user ${userId}:`, error);
+        }
+      }
+
+      // Clear pending follows
+      await Preferences.remove({ key: PENDING_FOLLOWS_KEY });
+    }
+
+    // Sync unfollows
+    const PENDING_UNFOLLOWS_KEY = "pending_unfollows";
+    const unfollowsResult = await Preferences.get({ key: PENDING_UNFOLLOWS_KEY });
+
+    if (unfollowsResult.value) {
+      const pendingUnfollows: string[] = JSON.parse(unfollowsResult.value);
+
+      for (const userId of pendingUnfollows) {
+        try {
+          await unfollowUser(userId);
+        } catch (error) {
+          console.error(`Error syncing unfollow for user ${userId}:`, error);
+        }
+      }
+
+      // Clear pending unfollows
+      await Preferences.remove({ key: PENDING_UNFOLLOWS_KEY });
+    }
+  } catch (error) {
+    console.error("Error syncing pending social actions:", error);
   }
-
-  return JSON.parse(result.value);
 };
 
 /**
- * Save a new user to "database"
- * @param user User data to save
+ * Setup connectivity listeners for auto-syncing when online
  */
-const saveUser = async (user: User): Promise<void> => {
-  // Get existing users
-  const users = await getUsers();
-
-  // Add new user
-  users.push(user);
-
-  // Save updated users
-  await Preferences.set({
-    key: "users",
-    value: JSON.stringify(users),
+export const setupConnectivityListeners = (): void => {
+  window.addEventListener("online", async () => {
+    console.log("Online: syncing user data and social actions...");
+    await syncPendingUserUpdates();
+    await syncPendingSocialActions();
   });
 };
 
-/**
- * Update a user in "database"
- * @param user User data to update
- */
-const updateUser = async (user: User): Promise<void> => {
-  // Get existing users
-  const users = await getUsers();
-
-  // Find and update user
-  const index = users.findIndex((u) => u.id === user.id);
-
-  if (index !== -1) {
-    users[index] = user;
-
-    // Save updated users
-    await Preferences.set({
-      key: "users",
-      value: JSON.stringify(users),
-    });
-  }
-};
-
-/**
- * Get a user by ID
- * @param userId User ID
- * @returns User data or null if not found
- */
-export const getUserById = async (userId: string): Promise<User | null> => {
-  // Get all users
-  const users = await getUsers();
-
-  // Find user by ID
-  const user = users.find((u) => u.id === userId);
-
-  return user || null;
-};
-
-/**
- * Get multiple users by IDs
- * @param userIds Array of user IDs
- * @returns Array of users
- */
-export const getUsersByIds = async (userIds: string[]): Promise<User[]> => {
-  if (!userIds || userIds.length === 0) {
-    return [];
-  }
-
-  // Get all users
-  const users = await getUsers();
-
-  // Filter users by IDs
-  return users.filter((user) => userIds.includes(user.id));
-};
+// Initialize connectivity listeners
+setupConnectivityListeners();
